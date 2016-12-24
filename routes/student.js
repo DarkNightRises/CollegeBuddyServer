@@ -1,9 +1,6 @@
 /***
 Module for Student API
 ***/
-
-
-
 //Requirements
 var express = require('express');
 var app = express();
@@ -22,7 +19,6 @@ module.exports = function(app){
 	app.get('/print', function(req, res){
 		res.end('Hello babay')
 	});
-
 
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
@@ -57,7 +53,8 @@ app.post('/api/signupStudent', function(req, res){
 		email: req.body.email, 
 		mobile_no: req.body.mobile_no,
 		password: req.body.password,
-		college_name: req.body.college_name
+		college_name: req.body.college_name,
+		student_number: req.body.student_number
 	};
 	pg.connect(connectionString, function(err,client,done){
 		if(err){
@@ -75,21 +72,22 @@ app.post('/api/signupStudent', function(req, res){
 			results = value
 			if(value.length>0){
 				done();
-				return res.status(500).json({success: false, data:'Email already exists'}); 
+				return res.status(403).json({success: false, data:'Email already exists'}); 
 			}
-				//queryString = ('INSERT INTO Student(name, branch,section, college, year, email, mob_no, password) values($1, $2, $3, $4, $5, $6, $7, $8)',
-				//[data.name, data.branch, data.section, data.college_name, data.year, data.email, data.mobile_no, data.password]);
 
 		var insertPromise = executeSignUpQuery(data,client);
 		insertPromise.then(function(value)
 		{
-			done();
-			return res.status(200).json(data);
+			// done();
+			// return res.status(200).json(data);
+			queryString = ('SELECT * from Student where email = \''+data.email+'\'');
+			var resultPromise = executeQuery(queryString,client);
+			resultPromise.then(function(value){
+				done();
+				return res.status(200).json({success: true, data: value});
+			})
 		});
-
 	});
-
-
 	});
 });
 
@@ -129,9 +127,11 @@ function executeEmailQuery(quer,client,data){
 function executeSignUpQuery(data,client){
 	console.log('Inside IC')
 	return new Promise(function (resolve,reject){
+		var uuid = require("uuid/v1");
+
 		var results = [];
-		var newquery = client.query('INSERT INTO Student(name, branch,section, college, year, email, mob_no, password, gcm_id, device_id) values($1, $2, $3, $4, $5, $6, $7, $8, 0, 0)',
-			[data.name, data.branch, data.section, data.college_name, data.year, data.email, data.mobile_no, data.password]);
+		var newquery = client.query('INSERT INTO Student(name, branch,section, college, year, email, mob_no, password, gcm_id, device_id, api_token, student_number) values($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, $9, $10)',
+			[data.name, data.branch, data.section, data.college_name, data.year, data.email, data.mobile_no, data.password,uuid(), data.student_number]);
 		return resolve('done');
 	});
 }

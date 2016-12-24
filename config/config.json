@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "kartikey",
+    "password": "glassgow161",
+    "database": "collegebuddy",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "kartikey",
+    "password": "glassgow161",
+    "database": "collegebuddy",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "kartikey",
+    "password": "glassgow161",
+    "database": "collegebuddy",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}

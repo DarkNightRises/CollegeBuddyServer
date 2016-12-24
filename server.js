@@ -54,9 +54,10 @@ app.post('/api/signupTeacher', function(req, res) {
 			}
 			else{
 				results = [];
+				var uuid = require("uuid/v1")
 		// SQL Query > Insert Data
-		client.query('INSERT INTO Teacher(name, email, mob_no, password, college, gcm_id, device_id) values($1, $2, $3, $4, $5, 0, 0)',
-			[data.name, data.email, data.mobile_no,data.password,data.college_name]);
+		client.query('INSERT INTO Teacher(name, email, mob_no, password, college, gcm_id, device_id,api_token) values($1, $2, $3, $4, $5, 0, 0, $6)',
+			[data.name, data.email, data.mobile_no,data.password,data.college_name, uuid()]);
 		// SQL Query > Select Data
 		query = client.query('SELECT * from Teacher where email= $1 AND password= $2',[data.email,data.password]);
 		// Stream results back one row at a time
@@ -95,11 +96,11 @@ app.post('/api/loginTeacher',function(req,res){
 		query.on('end', function()  {
 			done();
 			if(results.length>0){
-				return res.json(results);
+				return res.status(200).json({success:true, data:results});
 				
 			}
 			else{
-				return res.end("No such user exists");
+				return res.status(403).end("No such user exists");
 			}
 		});
 	});
@@ -122,20 +123,34 @@ app.post('/api/gcmidUpdate',function(req,res){
 			console.log(err);
 			return res.status(500).json({success: false, data: err});
 	}
-	var insertionPromise = insertinTable(data,client);
+
+			
+			var api_token = req.headers['auth-token'];
+	var checkVaildUser = checkAuthToken(api_token,client,data);
+	checkVaildUser.then(function(value){
+		if(value == 'Valid'){
+		var insertionPromise = insertinTable(data,client);
 	insertionPromise.then(function(value){
 		console.log('final value of promise is '+value);
 		if(value == 'done'){
+			console.log('Header of request are '+req.headers['auth-token'])
 			done();
-			return res.status(200).json({success: true,data: 'Insert successfull'})
+			return res.status(200).json({success: true,data: 'Update successfull'})
 		}
 		else{	
 			done();
-			return res.status(400).json({success: false,data: 'Insert Unsuccessfull'})
+			return res.status(501).json({success: false,data: 'Update Unsuccessfull'})
 			}
 		}).catch(function(e){
 			console.log('Got error '+e);
-		});
+		});	
+		}
+		else if(value == 'Invalid'){
+			done();
+			res.status(403).json({success:false, data: 'Invalid User'})
+		}
+	});
+	
 	});
 });
 
@@ -166,6 +181,37 @@ function insertinTable(data,client){
 			);
 		}
 		);
+}
+
+//Promise to check auth token
+function checkAuthToken(auth_token,client,data){
+	return new Promise(function(resolve,reject){
+		var connectionquery ;
+			if(data.dataflow == 0){
+				connectionquery = client.query('Select api_token from Teacher where email = $1',[data.email]);
+			}
+			else if(data.dataflow == 1){
+				connectionquery = client.query('Select api_token from Student where email = $1',[data.email]);	
+			}
+		
+		var results = [];
+		connectionquery.on('row',function(row){
+			console.log('Row is '+ row);
+			results.push(row);
+		});
+		connectionquery.on('end',function(){
+			console.log('auth token '+results[0].api_token+'   auth_of_user '+auth_token+'   query '+connectionquery);
+		if(results[0].api_token == auth_token){
+			console.log('valid');
+			return resolve('Valid');
+		}
+		else{
+			console.log('invalid');
+			return resolve('Invalid');
+		}
+		});
+		
+	});
 }
 
 //Route for student API
