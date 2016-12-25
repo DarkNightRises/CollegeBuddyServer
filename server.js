@@ -13,12 +13,7 @@ connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/colleg
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.get('/listUsers', function (req, res) {
- fs.readFile( __dirname + "/" + "users.json", 'utf8', function (err, data) {
-	 console.log( data );
-	 res.end( data );
- });
-})
+
 
 app.post('/api/signupTeacher', function(req, res) {
 	var results = [];
