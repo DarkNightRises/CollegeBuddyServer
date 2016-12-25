@@ -8,6 +8,8 @@ var pg = require("pg");
 var bodyParser = require("body-parser");
 var router = express.Router();
 connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy';
+ require('./models/database');
+// var db = require('./models/database');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -56,8 +58,28 @@ app.post('/api/signupTeacher', function(req, res) {
 				results = [];
 				var uuid = require("uuid/v1")
 		// SQL Query > Insert Data
-		client.query('INSERT INTO Teacher(name, email, mob_no, password, college, gcm_id, device_id,api_token) values($1, $2, $3, $4, $5, 0, 0, $6)',
-			[data.name, data.email, data.mobile_no,data.password,data.college_name, uuid()]);
+		console.log('College insertion'+data.college_name);
+		query = client.query('Select id from College where name=$1',[data.college_name]);
+			var id_of_college=0;
+
+		query.on('row',function(row){
+			
+			id_of_college = row['id'];
+		});
+		query.on('end',function(){
+			if(id_of_college == 0){
+				console.log('Inside new addition');
+		query=client.query('Insert into College(name) values ($1)',[data.college_name]);
+		query.on('end',function(){
+			console.log('College insertion done');
+		query = client.query('Select id from College where name=$1',[data.college_name]);
+		query.on('row',function(row){
+				id_of_college = row['id'];
+		
+		});
+		query.on('end',function(){
+			client.query('INSERT INTO Teacher(name, email, mob_no, password, College_Id, gcm_id, device_id,api_token) values($1, $2, $3, $4, $5, 0, 0, $6)',
+			[data.name, data.email, data.mobile_no,data.password,id_of_college, uuid()]);
 		// SQL Query > Select Data
 		query = client.query('SELECT * from Teacher where email= $1 AND password= $2',[data.email,data.password]);
 		// Stream results back one row at a time
@@ -68,7 +90,30 @@ app.post('/api/signupTeacher', function(req, res) {
 		query.on('end', function()  {
 			done();
 			return res.json({sucess: true, data: results});
+		});		
+
 		});
+		
+		});	
+		}
+		else{
+			client.query('INSERT INTO Teacher(name, email, mob_no, password, College_Id, gcm_id, device_id,api_token) values($1, $2, $3, $4, $5, 0, 0, $6)',
+			[data.name, data.email, data.mobile_no,data.password,id_of_college, uuid()]);
+		// SQL Query > Select Data
+		query = client.query('SELECT * from Teacher where email= $1 AND password= $2',[data.email,data.password]);
+		// Stream results back one row at a time
+		query.on('row', function(row) {
+			results.push(row);
+		});
+		// After all data is returned, close connection and return results
+		query.on('end', function()  {
+			done();
+			return res.json({sucess: true, data: results});
+		});		
+	
+		}	
+		})
+		
 	}
 });
 	});
@@ -182,7 +227,18 @@ function insertinTable(data,client){
 		}
 		);
 }
-
+function getCollegeId(client,dataflow,data){
+	return new Promise(function(resolve,reject){
+			query = client.query('Select id from College where name = $1',[data.college_name]);
+			var id_of_college = 0;
+			query.on('row',function(row){
+				id_of_college = row['id'];
+			});
+			query.on('end',function(){
+				return resolve(id_of_college);
+			});
+	});
+}
 //Promise to check auth token
 function checkAuthToken(auth_token,client,data){
 	return new Promise(function(resolve,reject){
