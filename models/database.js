@@ -2,8 +2,6 @@ const pg = require('pg');
 const connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy';
 const client = new pg.Client(connectionString);
 client.connect();
-var Sequelize = require('sequelize')
-var sequelize = require('../config/dbconfig').sequelize;
 
 var query = client.query('CREATE TABLE IF NOT EXISTS items(id SERIAL PRIMARY KEY, text VARCHAR(40) not null, complete BOOLEAN)');
  query = client.query('create table if not exists College(ID serial primary key, Name Text NOT NULL)');
