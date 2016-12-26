@@ -14,7 +14,8 @@ var connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/co
 //For parsing post json data in API
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-module.exports = function(app){
+module.exports = function(app)
+{
 
 	app.get('/print', function(req, res){
 		res.end('Hello babay')
@@ -138,7 +139,7 @@ pg.connect(connectionString, function(err,client,done){
 					console.log('Results in signup is '+value);
 						promise = executeQuery(queryString,client);
 						promise.then(function(value){
-							res.status(200).json({success:true,data: value});
+							return res.status(200).json({success:true,data: value});
 						});
 					});
 				}
@@ -146,23 +147,31 @@ pg.connect(connectionString, function(err,client,done){
 				var insertSectionQuery = ('Insert into section(branch_id,section,year) values ('+branch_id+','+section+','+year+')');
 				var insertSectionPromise = executeInsertQuery(insertSectionQuery,client);
 				insertSectionPromise.then(function(value){
-					results = [];
-					results = value;
-					var sec_arr = results[0];
 					
-					 section_id = sec_arr['id'];
-					console.log('got section_id in'+section_id);
-					data.section_id = section_id;
+					// results = [];
+					// results = value;
+					// var sec_arr = results[0];
 					
+					//  section_id = sec_arr['id'];
+					console.log('inside isp new');
+					// data.section_id = section_id;
+					sectionGetQuery = ('Select id from section where section = '+section+' AND branch_id = '+branch_id+
+				' AND year = '+year);
 					sectionPromise = executeQuery(sectionGetQuery,client);
 					sectionPromise.then(function(value){
-						var section_id = results['id'];
+						 results = [];
+					 results = value;
+					 var sec_arr = results[0];
+						var section_id = sec_arr['id'];
 						data.section_id = section_id;
-					var executeSignUpQuery  = executeSignUpQuery(data,client);
-					executeSignUpQuery.then(function(value){
+						console.log('got section_id in'+section_id);
+					var executeSignQuery  = executeSignUpQuery(data,client);
+					executeSignQuery.then(function(value){
 						promise = executeQuery(queryString,client);
+						console.log('inside 2dd');
 						promise.then(function(value){
-							res.status(200).json({success:true,data: value});
+						console.log('inside dd');
+							return res.status(200).json({success:true,data: value});
 						});
 					});
 					});
@@ -221,14 +230,16 @@ function executeEmailQuery(quer,client,data){
 //Promises to post data during signup
 function executeSignUpQuery(data,client){
 	console.log('Inside IC')
-	return new Promise(function (resolve,reject){
-		console/log('Sign up started');
+	return new Promise(function(resolve,reject){
+		console.log('Sign up started');
 		var uuid = require("uuid/v1");
 
-		var results = [];
 		var newquery = client.query('INSERT INTO Student(name, section_Id, college_Id, email, mob_no, password, gcm_id, device_id, api_token) values($1, $2, $3, $4, $5, $6, 0, 0, $7)',
 			[data.name, data.section_id, data.college_Id, data.email, data.mobile_no, data.password,uuid()]);
-		return resolve('done');
+		newquery.on('end',function(){
+			console.log('done');
+			return resolve('done');});
+		
 	});
 }
 }
