@@ -54,6 +54,7 @@ app.post('/api/signupTeacher', function(req, res) {
 				var uuid = require("uuid/v1")
 		// SQL Query > Insert Data
 		console.log('College insertion'+data.college_name);
+		
 		query = client.query('Select id from College where name=$1',[data.college_name]);
 			var id_of_college=0;
 
@@ -113,6 +114,8 @@ app.post('/api/signupTeacher', function(req, res) {
 });
 	});
 });
+
+
 app.post('/api/loginTeacher',function(req,res){
 	var results = [];
 	var email=req.body.email;
@@ -194,14 +197,18 @@ app.post('/api/gcmidUpdate',function(req,res){
 	});
 });
 
-
-//Test API for hosting check
-app.get('/checkApi',function(req,res)
-{
-	console.log("Hosted on Heoku"); 
-	return res.end("Got result");
+function getCollegeId(client,college_name){
+	return new Promise(function(reolve,reject){
+		var College_Id = 0;
+		var query = client.query('Select id from College where name = $1',[college_name]);
+		query.on('row',function(row){
+			College_Id = row['id'];
+		});
+		query.on('end',function(){
+			return resolve(College_Id);
+		})
+	});
 }
-);
 
 //Promise for insert query
 function insertinTable(data,client){
