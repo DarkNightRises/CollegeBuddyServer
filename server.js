@@ -5,6 +5,9 @@ var express = require('express');
 var app = express();
 var fs = require("fs");
 var pg = require("pg");
+var FCM = require('fcm-node');
+var serverKey = 'AIzaSyAcfb4UmBBpoJd_gE5-hl478JKSVS_teKU';
+var fcm = new FCM(serverKey);
 var bodyParser = require("body-parser");
 var router = express.Router();
 connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy';
@@ -13,6 +16,74 @@ connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/colleg
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+
+//Push Notification Test
+app.get('/api/push',function(req,res){
+	var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+    to: 'eUMLA50hmCk:APA91bHMZjnXkUxUXNq2VGrMfnk2kRh3zuvW9QMmsSw-h5XLu2z7p3tW0HWSYLl9i4PbAuA1U289daxpPuV4wnbThIQPYU6mReJRaOtr_F3tTD7EoaSQ51hadB2ps5B_sb8SfakzGKjU', 
+
+    notification: {
+        title: 'FCM', 
+        body: 'CollegeBuddy' 
+    },
+    
+    data: {  //you can send only notification or only data(or include both)
+        my_key: 'my life',
+        my_another_key: 'my rules'
+    }
+};
+
+fcm.send(message, function(err, response){
+    if (err) {
+        console.log("Something has gone wrong!"+err);
+    return res.status(200).json({success:false,data: 'Unsuccessfull'});
+} else {
+        console.log("Successfully sent with response: ", response);
+    return res.status(200).json({success:true,data: 'successfull'});
+    }
+});
+});
+
+app.post('/api/uploadSubject',function(req,res){
+var inputs = [];
+var results = [];
+inputs = req.body;
+console.log(req.body+"  "+inputs.length);
+pg.connect(connectionString,function(err,client,done){
+var count =0;
+for (var i=0 ;i < inputs.length;i++){
+
+var object = inputs[i];
+console.log(object.name);
+var name = '\''+object.name+'\'';
+var code = '\''+object.subject_code+'\'';
+var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
+console.log(subquery+" \n "+i);
+var insertionPromise = insertSubject(subquery,client);
+insertionPromise.then(function(value){
+	count = count+1;
+	console.log('count is '+count);
+	if(count==inputs.length){
+		count = 0;
+		for (i=0;i<inputs.length;i++){
+			var object = inputs[i];
+			var getIdPromise = getSubjectId(object.subject_code,client,results);
+			getIdPromise.then(function(value){
+				results = value;
+				count = count+1;
+				if(count == inputs.length){
+						return res.status(200).json({success:true, data:results});
+				}
+			});
+}
+
+	}
+});
+}
+});
+
+});
 
 
 app.post('/api/signupTeacher', function(req, res) {
@@ -196,6 +267,31 @@ app.post('/api/gcmidUpdate',function(req,res){
 	
 	});
 });
+
+
+function getSubjectId(code,client,results){
+	return new Promise(function(resolve,reject){
+		var newQuery = client.query('Select * from Subject where code =$1',[code]);
+		newQuery.on('row',function(row){
+			results.push(row);
+		});
+		newQuery.on('end',function(){
+			return resolve(results);
+		}
+			);
+	});
+}
+
+function insertSubject(quer,client){
+return new Promise(function(resolve,reject){
+var newQuery = client.query(quer);
+newQuery.on('end',function(){
+	return resolve('done');
+})
+});
+}
+
+
 
 function getCollegeId(client,college_name){
 	return new Promise(function(reolve,reject){

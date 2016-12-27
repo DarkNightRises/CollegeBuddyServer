@@ -11,6 +11,7 @@
     "debug": "~2.2.0",
     "express": "~4.14.0",
     "express-stormpath": "^3.1.6",
+    "fcm-node": "^1.0.16",
     "jade": "~1.11.0",
     "morgan": "~1.7.0",
     "pg": "^6.1.0",
