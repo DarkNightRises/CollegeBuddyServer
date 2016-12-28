@@ -101,7 +101,7 @@ app.post('/api/signupStudent',function(req,res){
 		email: req.body.email, 
 		mobile_no: req.body.mobile_no,
 		password: req.body.password,
-		college_Id: req.body.college_Id,
+		college_id: req.body.college_id,
 		student_number: req.body.student_number
 	};	
 pg.connect(connectionString, function(err,client,done){
@@ -234,8 +234,8 @@ function executeSignUpQuery(data,client){
 		console.log('Sign up started');
 		var uuid = require("uuid/v1");
 
-		var newquery = client.query('INSERT INTO Student(name, section_Id, college_Id, email, mob_no, password, gcm_id, device_id, api_token) values($1, $2, $3, $4, $5, $6, 0, 0, $7)',
-			[data.name, data.section_id, data.college_Id, data.email, data.mobile_no, data.password,uuid()]);
+		var newquery = client.query('INSERT INTO Student(name, section_id, college_id, email, mob_no, password, gcm_id, device_id, api_token) values($1, $2, $3, $4, $5, $6, 0, 0, $7)',
+			[data.name, data.section_id, data.college_id, data.email, data.mobile_no, data.password,uuid()]);
 		newquery.on('end',function(){
 			console.log('done');
 			return resolve('done');});
