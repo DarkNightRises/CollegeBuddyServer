@@ -45,19 +45,14 @@ function sendMessages(data_subject,reason_for_meesage){
 	console.log(messageAddress);
 	return new Promise(function(resolve,reject){
 
-	var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+	var message = {
 		to: '/topics/'+messageAddress, 
 
 		notification: {
 			title: 'FCM', 
 			body: 'CollegeBuddy' 
 		},
-		
-	// data: {  //you can send only notification or only data(or include both)
-		
-	// 	my_key: 'my life',
-	// 	my_another_key: 'my rules'
-	// 	}
+
 	data: dataPayload
 	};
 
@@ -73,7 +68,43 @@ function sendMessages(data_subject,reason_for_meesage){
 	});
 	}
 
+/***
+Api for student to upload his attendance
+***/
+app.post('/api/uploadAttendance',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		var data ={			
+			student_id: req.body.id,
+			subject_id: req.body.subject_id,
+			datetime: 	req.body.datetime,
+			present: req.body.present
+		};
+		var uploadPromise = uploadAttendace(data,client);
+		var currentTime = Date.now();
+		uploadPromise.then(function(value){
+			if(value == 'done'){
+				done();
+				return res.status(200).json({success:true,data:"Attendance Upload Succesfull"});
+			}
+			else{
+				done();
+				return res.status(200).json({success:false,data:"Reload your attendance again"});
+				
+			}
+		});
+	});
+});
 
+function uploadAttendace(data,client)
+{
+	return new Promise(function(resolve,reject){
+		var executeQuery = client.query('Insert into Attendance(student_id,subject_id,datetime,present) values($1,$2,$3,$4)',
+			[data.student_id,data.subject_id,data.datetime,data.present]);
+		executeQuery.on('end',function(){
+			return resolve('done');
+		});
+	});
+}
 /***
 Api for teacher to send a class attendance request
 ***/
@@ -84,7 +115,7 @@ app.post('/api/takeAttendance',function(req,res){
 			location: req.body.location,
 			sst_id: req.body.sst_id
 		};
-		data.timestamp = Date.now();
+		data.datetime = Date.now();
 		var sstinfoPromise = getinfoSST(data.sst_id,client);
 		sstinfoPromise.then(function(value){
 			var result = value[0];
@@ -95,7 +126,7 @@ app.post('/api/takeAttendance',function(req,res){
 				var finaldata = value;
 				finaldata.subject_id = result.subject_id;
 				finaldata.sst_id = data.sst_id;
-				finaldata.timestamp = data.timestamp;
+				finaldata.datetime = data.datetime;
 				finaldata.location = data.location;
 				console.log("End result "+finaldata.subject_name+"  "+finaldata.branch_name+"  "+finaldata.section+"  "+finaldata.year);
 				var sendPromise = sendMessages(finaldata,'attendance');
