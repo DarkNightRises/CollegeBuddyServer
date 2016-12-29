@@ -18,14 +18,31 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 
-// //Push Notification Test
-// app.get('/api/push',function(req,res){
 
-// });
+//Function to send message to class subscribed to a particular topic
+function sendMessages(data_subject,reason_for_meesage){
+	var messageAddress = data_subject.subject_name+data_subject.section+data_subject.branch_name+data_subject.year;
+	
+	
+		var jsonData = JSON.stringify(data_subject);
+		console.log('Go tjson data'+jsonData);
+	if(reason_for_meesage == 'attendance'){
+		var payloadString = {
+			"reason": ""+reason_for_meesage,
+			"data": jsonData
 
-function sendMessages(data_subject){
-var messageAddress = data_subject.subject_name+data_subject.section+data_subject.branch_name+data_subject.year;
-console.log(messageAddress);
+		};
+		dataPayload = {payload:JSON.stringify(payloadString)};
+		console.log("Data Subject"+data_subject);
+	}
+	else{
+		var payloadString = {
+			"reason":""+ reason_for_meesage,
+			"data": "Just fun with notification"
+		};
+		dataPayload = {payload:JSON.stringify(payloadString)};
+	}
+	console.log(messageAddress);
 	return new Promise(function(resolve,reject){
 
 	var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
@@ -36,13 +53,15 @@ console.log(messageAddress);
 			body: 'CollegeBuddy' 
 		},
 		
-    data: {  //you can send only notification or only data(or include both)
-    	my_key: 'my life',
-    	my_another_key: 'my rules'
-    }
-};
+	// data: {  //you can send only notification or only data(or include both)
+		
+	// 	my_key: 'my life',
+	// 	my_another_key: 'my rules'
+	// 	}
+	data: dataPayload
+	};
 
-fcm.send(message, function(err, response){
+	fcm.send(message, function(err, response){
 	if (err) {
 		console.log("Something has gone wrong!"+err);
 		return reject(err);
@@ -50,11 +69,59 @@ fcm.send(message, function(err, response){
 		console.log("Successfully sent with response: ", response);
 		return resolve('Sent');
 	}
-});		
+	});		
+	});
+	}
+
+
+/***
+Api for teacher to send a class attendance request
+***/
+app.post('/api/takeAttendance',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			location: req.body.location,
+			sst_id: req.body.sst_id
+		};
+		data.timestamp = Date.now();
+		var sstinfoPromise = getinfoSST(data.sst_id,client);
+		sstinfoPromise.then(function(value){
+			var result = value[0];
+			console.log()
+			//SBSC ----> Subject Branch Section College
+			var getSBSCpromise = getSubBranchSectCollege(result,client);
+			getSBSCpromise.then(function(value){
+				var finaldata = value;
+				finaldata.subject_id = result.subject_id;
+				finaldata.sst_id = data.sst_id;
+				finaldata.timestamp = data.timestamp;
+				finaldata.location = data.location;
+				console.log("End result "+finaldata.subject_name+"  "+finaldata.branch_name+"  "+finaldata.section+"  "+finaldata.year);
+				var sendPromise = sendMessages(finaldata,'attendance');
+				sendPromise.then(function(value){
+					if(value == 'Sent'){
+						done();
+						return res.end('done');
+					}
+				})
+				.catch(function(err){
+					done();
+					return res.status(403).json({success:false, data: err});
+				});
+			});
+		});
+		});
 	});
 
-}
 
+
+/***
+Api for teacher to ask a class attendance after particular time interval
+***/
+app.post('/api/getAttendance',function(req,res){
+
+});
 
 //Api for sending notification to class 
 app.post('/api/sendClass',function(req,res){
@@ -73,16 +140,16 @@ app.post('/api/sendClass',function(req,res){
 			getSBSCpromise.then(function(value){
 				var data = value;
 				console.log("End result "+data.subject_name+"  "+data.branch_name+"  "+data.section+"  "+data.year);
-						
+				
 				// done();
 
 				// return res.end('done');
-				var sendPromise = sendMessages(data);
+				var sendPromise = sendMessages(data,'notification');
 				sendPromise.then(function(value){
 					if(value == 'Sent'){
-					 done();
-					return res.end('done');
-				}
+						done();
+						return res.end('done');
+					}
 				}).catch(function(err){
 					done();
 					return res.status(403).json({success:false, data: err});
@@ -91,35 +158,39 @@ app.post('/api/sendClass',function(req,res){
 
 		});
 	});
-});
+	});
 
+//function to get name of subject,branch , section with their respective ids 
 function getSubBranchSectCollege(test_data,client)
-{
-return new Promise(function(resolve,reject){
-	var data = {};
-var getSubquery = client.query('Select name from subject where id = $1',[test_data.subject_id]);
-getSubquery.on('row',function(row){
-data.subject_name = row['name'];
-});
-getSubquery.on('end',function(){
-	var getSecquery = client.query('Select * from section where id = $1',[test_data.section_id]);
-	getSecquery.on('row',function(row){
-		data.section = row['section'];
-		data.year = row['year'];
-		data.branch_id = row['branch_id'];
-	});
-	getSecquery.on('end',function(){
-		var getBranchquery = client.query('Select name from branch where id = $1',[data.branch_id]);
-		getBranchquery.on('row',function(row){
-			data.branch_name = row['name'];
+	{
+	return new Promise(function(resolve,reject){
+		var data = {};
+		var getSubquery = client.query('Select name from subject where id = $1',[test_data.subject_id]);
+		getSubquery.on('row',function(row){
+			data.subject_name = row['name'];
 		});
-		getBranchquery.on('end',function(){
-			return resolve(data);
+		getSubquery.on('end',function(){
+			var getSecquery = client.query('Select * from section where id = $1',[test_data.section_id]);
+			getSecquery.on('row',function(row){
+				data.section = row['section'];
+				data.year = row['year'];
+				data.branch_id = row['branch_id'];
+			});
+			getSecquery.on('end',function(){
+				var getBranchquery = client.query('Select name from branch where id = $1',[data.branch_id]);
+				getBranchquery.on('row',function(row){
+					data.branch_name = row['name'];
+				});
+				getBranchquery.on('end',function(){
+					return resolve(data);
+				});
+			});
 		});
 	});
-	});
-	});
-}
+	}
+
+
+
 //API To upload subjects by teacher
 app.post('/api/uploadSubject',function(req,res){
 	var faculty_id = req.body.id;
@@ -178,54 +249,67 @@ app.post('/api/uploadSubject',function(req,res){
 
 				}
 			});
-}
-});
+		}
+		});
 
-});
-function insertAndGetsst_id(data,client,results){
-	return new Promise(function(resolve,reject){
-		console.log('Inside promise'+data.section_id+"   "+data.subject_id+"  "+data.teacher_id);
-		var newQuery = client.query('INSERT INTO Section_Subject_Teacher(section_id, subject_id, teacher_id) SELECT * FROM (SELECT $1::int, $2::int, $3::int) AS tmp WHERE NOT EXISTS (SELECT id FROM Section_Subject_Teacher WHERE section_id = $1::int AND subject_id = $2::int AND teacher_id = $3::int) LIMIT 1;',[data.section_id,data.subject_id,data.teacher_id]);
-		newQuery.on('end',function(){
-			
-			console.log('Inside promise end');
+	});
 
-			newQuery = client.query('Select id,subject_id from Section_Subject_Teacher where section_id = $1 AND subject_id =$2 AND teacher_id =$3',[data.section_id,data.subject_id,data.teacher_id]);
-			newQuery.on('row',function(row){
-				console.log('Inside promise'+row);
-				results.push(row);
-			});
+
+
+/***
+	function to insert subject branch and section to
+	Section_Subject_teacher and
+	get id of new row inserted
+	***/
+	function insertAndGetsst_id(data,client,results){
+		return new Promise(function(resolve,reject){
+			console.log('Inside promise'+data.section_id+"   "+data.subject_id+"  "+data.teacher_id);
+			var newQuery = client.query('INSERT INTO Section_Subject_Teacher(section_id, subject_id, teacher_id) SELECT * FROM (SELECT $1::int, $2::int, $3::int) AS tmp WHERE NOT EXISTS (SELECT id FROM Section_Subject_Teacher WHERE section_id = $1::int AND subject_id = $2::int AND teacher_id = $3::int) LIMIT 1;',[data.section_id,data.subject_id,data.teacher_id]);
 			newQuery.on('end',function(){
-				return resolve(results);
+				
+				console.log('Inside promise end');
+
+				newQuery = client.query('Select id,subject_id from Section_Subject_Teacher where section_id = $1 AND subject_id =$2 AND teacher_id =$3',[data.section_id,data.subject_id,data.teacher_id]);
+				newQuery.on('row',function(row){
+					console.log('Inside promise'+row);
+					results.push(row);
+				});
+				newQuery.on('end',function(){
+					return resolve(results);
+					});
+				});
+			});
+		}
+
+/***
+	function to get branch_id , subject_id , section_id from Section_subject
+	_teacher table with sst_id given
+	***/
+	function getinfoSST(id,client){
+		return new Promise(function(resolve,reject){
+			var result =[];
+			var infoquery = client.query('Select * from Section_Subject_Teacher where id =$1',[id]);
+			infoquery.on('row',function(row){
+				console.log('row'+row['section_id']);
+				result.push(row);
+			});
+			infoquery.on('end',function(){
+				return resolve(result);
 			});
 		});
-	});
-}
-
-
-function getinfoSST(id,client){
-	return new Promise(function(resolve,reject){
-		var result =[];
-		var infoquery = client.query('Select * from Section_Subject_Teacher where id =$1',[id]);
-		infoquery.on('row',function(row){
-			console.log('row'+row['section_id']);
-				result.push(row);
-		});
-		infoquery.on('end',function(){
-			return resolve(result);
-		});
-	});
-}
-
-function checkForError(err){
-	if(err) {
-		done();
-		console.log(err);
-		return res.status(500).json({success: false, data: err});
 	}
-}
-//Api for teacher sign up
-app.post('/api/signupTeacher', function(req, res) {
+
+	function checkForError(err){
+		if(err) {
+			done();
+			console.log(err);
+			return res.status(500).json({success: false, data: err});
+		}
+	}
+/***
+Api for teacher sign up
+***/
+	app.post('/api/signupTeacher', function(req, res) {
 	var results = [];
 	// Grab data from http request
 	
@@ -318,15 +402,18 @@ app.post('/api/signupTeacher', function(req, res) {
 		});		
 		
 	}	
-})
+	})
 
-}
-});
-});
-});
+	}
+	});
+	});
+	});
 
-
-app.post('/api/loginTeacher',function(req,res){
+/***
+Api for teacher login
+***/
+	
+	app.post('/api/loginTeacher',function(req,res){
 	var results = [];
 	var email=req.body.email;
 	var password=req.body.password;
@@ -357,10 +444,12 @@ app.post('/api/loginTeacher',function(req,res){
 			}
 		});
 	});
-});
+	});
 
-//API for gcm id update
-app.post('/api/gcmidUpdate',function(req,res){
+/***
+API for gcm id update
+***/
+	app.post('/api/gcmidUpdate',function(req,res){
 	var data = [];
 	data.gcm_id= req.body.gcm_id;
 	data.device_id = req.body.device_id;
@@ -406,7 +495,7 @@ app.post('/api/gcmidUpdate',function(req,res){
 		});
 		
 	});
-});
+	});
 
 
 function getSubjectId(code,client,results){
@@ -432,7 +521,9 @@ function insertSubject(quer,client){
 }
 
 
-
+/***
+function to get id of college from college_name
+***/
 function getCollegeId(client,college_name){
 	return new Promise(function(reolve,reject){
 		var College_Id = 0;
@@ -445,9 +536,23 @@ function getCollegeId(client,college_name){
 		})
 	});
 }
-
+/***
+function to get id of college from college_name
+***/
+function getCollegeId(client,dataflow,data){
+	return new Promise(function(resolve,reject){
+		query = client.query('Select id from College where name = $1',[data.college_name]);
+		var id_of_college = 0;
+		query.on('row',function(row){
+			id_of_college = row['id'];
+		});
+		query.on('end',function(){
+			return resolve(id_of_college);
+		});
+	});
+}
 //Promise for insert query
-function insertinTable(data,client){
+	function insertinTable(data,client){
 	return new Promise(function	(resolve,reject)
 	{
 
@@ -464,19 +569,9 @@ function insertinTable(data,client){
 		);
 	}
 	);
-}
-function getCollegeId(client,dataflow,data){
-	return new Promise(function(resolve,reject){
-		query = client.query('Select id from College where name = $1',[data.college_name]);
-		var id_of_college = 0;
-		query.on('row',function(row){
-			id_of_college = row['id'];
-		});
-		query.on('end',function(){
-			return resolve(id_of_college);
-		});
-	});
-}
+	}
+
+
 //Promise to check auth token
 function checkAuthToken(auth_token,client,data){
 	return new Promise(function(resolve,reject){
