@@ -24,8 +24,8 @@ function sendMessages(data_subject,reason_for_meesage){
 	var messageAddress = data_subject.subject_name+data_subject.section+data_subject.branch_name+data_subject.year;
 	
 	
-		var jsonData = JSON.stringify(data_subject);
-		console.log('Go tjson data'+jsonData);
+	var jsonData = JSON.stringify(data_subject);
+	console.log('Go tjson data'+jsonData);
 	if(reason_for_meesage == 'attendance'){
 		var payloadString = {
 			"reason": ""+reason_for_meesage,
@@ -45,67 +45,29 @@ function sendMessages(data_subject,reason_for_meesage){
 	console.log(messageAddress);
 	return new Promise(function(resolve,reject){
 
-	var message = {
-		to: '/topics/'+messageAddress, 
+		var message = {
+			to: '/topics/'+messageAddress, 
 
-		notification: {
-			title: 'FCM', 
-			body: 'CollegeBuddy' 
-		},
+			notification: {
+				title: 'FCM', 
+				body: 'CollegeBuddy' 
+			},
 
-	data: dataPayload
-	};
-
-	fcm.send(message, function(err, response){
-	if (err) {
-		console.log("Something has gone wrong!"+err);
-		return reject(err);
-	} else {
-		console.log("Successfully sent with response: ", response);
-		return resolve('Sent');
-	}
-	});		
-	});
-	}
-
-/***
-Api for student to upload his attendance
-***/
-app.post('/api/uploadAttendance',function(req,res){
-	pg.connect(connectionString,function(err,client,done){
-		var data ={			
-			student_id: req.body.id,
-			subject_id: req.body.subject_id,
-			datetime: 	req.body.datetime,
-			present: req.body.present
+			data: dataPayload
 		};
-		var uploadPromise = uploadAttendace(data,client);
-		var currentTime = Date.now();
-		console.log(currentTime.getTime());
-		uploadPromise.then(function(value){
-			if(value == 'done'){
-				done();
-				return res.status(200).json({success:true,data:"Attendance Upload Succesfull"});
-			}
-			else{
-				done();
-				return res.status(200).json({success:false,data:"Reload your attendance again"});
-				
-			}
-		});
-	});
-});
 
-function uploadAttendace(data,client)
-{
-	return new Promise(function(resolve,reject){
-		var executeQuery = client.query('Insert into Attendance(student_id,subject_id,datetime,present) values($1,$2,$3,$4)',
-			[data.student_id,data.subject_id,data.datetime,data.present]);
-		executeQuery.on('end',function(){
-			return resolve('done');
-		});
+		fcm.send(message, function(err, response){
+			if (err) {
+				console.log("Something has gone wrong!"+err);
+				return reject(err);
+			} else {
+				console.log("Successfully sent with response: ", response);
+				return resolve('Sent');
+			}
+		});		
 	});
 }
+
 
 /***
 Api for teacher to get a class attendance after 5 minutes of request
@@ -122,10 +84,28 @@ app.post('/api/getAttendance',function(req,res){
 		var sstinfoPromise = getinfoSST(data.sst_id,client);
 		sstinfoPromise.then(function(value){
 			var result = value[0];
+			var getStudentPromise = getStudentFromSection(result['id'],client);
+			getStudentPromise.then(function(value){
+				var studentlist = value;
+			});
 
 		});
 	});
 });
+
+
+function getStudentFromSection(section_id,client){
+return new Promise(function(resolve,reject){
+	var results = [];
+	var getStudentQuery = client.query('Select * from student where section_id = $1',[section_id]);
+	getStudentQuery.on('row',function(row){
+		results.push('row');
+	});
+	getStudentQuery.on('end',function(){
+		return resolve(results);
+	});
+});
+}
 
 /***
 Api for teacher to send a class attendance request
@@ -164,8 +144,8 @@ app.post('/api/takeAttendance',function(req,res){
 				});
 			});
 		});
-		});
 	});
+});
 
 
 
@@ -205,11 +185,11 @@ app.post('/api/sendClass',function(req,res){
 
 		});
 	});
-	});
+});
 
 //function to get name of subject,branch , section with their respective ids 
 function getSubBranchSectCollege(test_data,client)
-	{
+{
 	return new Promise(function(resolve,reject){
 		var data = {};
 		var getSubquery = client.query('Select name from subject where id = $1',[test_data.subject_id]);
@@ -234,7 +214,7 @@ function getSubBranchSectCollege(test_data,client)
 			});
 		});
 	});
-	}
+}
 
 
 
@@ -296,10 +276,10 @@ app.post('/api/uploadSubject',function(req,res){
 
 				}
 			});
-		}
-		});
+}
+});
 
-	});
+});
 
 
 
@@ -323,10 +303,10 @@ app.post('/api/uploadSubject',function(req,res){
 				});
 				newQuery.on('end',function(){
 					return resolve(results);
-					});
 				});
 			});
-		}
+		});
+	}
 
 /***
 	function to get branch_id , subject_id , section_id from Section_subject
@@ -356,7 +336,7 @@ app.post('/api/uploadSubject',function(req,res){
 /***
 Api for teacher sign up
 ***/
-	app.post('/api/signupTeacher', function(req, res) {
+app.post('/api/signupTeacher', function(req, res) {
 	var results = [];
 	// Grab data from http request
 	
@@ -449,18 +429,18 @@ Api for teacher sign up
 		});		
 		
 	}	
-	})
+})
 
-	}
-	});
-	});
-	});
+}
+});
+});
+});
 
 /***
 Api for teacher login
 ***/
-	
-	app.post('/api/loginTeacher',function(req,res){
+
+app.post('/api/loginTeacher',function(req,res){
 	var results = [];
 	var email=req.body.email;
 	var password=req.body.password;
@@ -491,12 +471,12 @@ Api for teacher login
 			}
 		});
 	});
-	});
+});
 
 /***
 API for gcm id update
 ***/
-	app.post('/api/gcmidUpdate',function(req,res){
+app.post('/api/gcmidUpdate',function(req,res){
 	var data = [];
 	data.gcm_id= req.body.gcm_id;
 	data.device_id = req.body.device_id;
@@ -542,7 +522,7 @@ API for gcm id update
 		});
 		
 	});
-	});
+});
 
 
 function getSubjectId(code,client,results){
@@ -599,7 +579,7 @@ function getCollegeId(client,dataflow,data){
 	});
 }
 //Promise for insert query
-	function insertinTable(data,client){
+function insertinTable(data,client){
 	return new Promise(function	(resolve,reject)
 	{
 
@@ -616,7 +596,7 @@ function getCollegeId(client,dataflow,data){
 		);
 	}
 	);
-	}
+}
 
 
 //Promise to check auth token

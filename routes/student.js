@@ -91,6 +91,47 @@ app.get('/api/getBranch',function(req,res){
 		});
 	});
 });
+
+/***
+Api for student to upload his attendance
+***/
+app.post('/api/uploadAttendance',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		var data ={			
+			student_id: req.body.id,
+			subject_id: req.body.subject_id,
+			datetime: 	req.body.datetime,
+			present: req.body.present
+		};
+		var uploadPromise = uploadAttendace(data,client);
+		var currentTime = Date.now();
+		console.log(currentTime.getTime());
+		uploadPromise.then(function(value){
+			if(value == 'done'){
+				done();
+				return res.status(200).json({success:true,data:"Attendance Upload Succesfull"});
+			}
+			else{
+				done();
+				return res.status(200).json({success:false,data:"Reload your attendance again"});
+			}
+		});
+	});
+});
+
+function uploadAttendace(data,client)
+{
+	return new Promise(function(resolve,reject){
+		var executeQuery = client.query('Insert into Attendance(student_id,subject_id,datetime,present) values($1,$2,$3,$4)',
+			[data.student_id,data.subject_id,data.datetime,data.present]);
+		executeQuery.on('end',function(){
+			return resolve('done');
+		});
+	});
+}
+
+
+
 app.post('/api/signupStudent',function(req,res){
 	var results = [];
 	var data = {
@@ -139,7 +180,14 @@ pg.connect(connectionString, function(err,client,done){
 					console.log('Results in signup is '+value);
 						promise = executeQuery(queryString,client);
 						promise.then(function(value){
-							return res.status(200).json({success:true,data: value});
+					console.log("Fuccccc    "+data.section_id+"	"+value[0]['id']);
+					var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1,$2)',[data.section_id,value[0]['id']]);
+						insertSectionStudentQuery.on('end',function(){
+				return res.status(200).json({success:true,data: value});
+						});
+							
+
+
 						});
 					});
 				}
@@ -171,7 +219,12 @@ pg.connect(connectionString, function(err,client,done){
 						console.log('inside 2dd');
 						promise.then(function(value){
 						console.log('inside dd');
-							return res.status(200).json({success:true,data: value});
+						var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1::int,$2::int)',[data.section_id,value[0]['id']]);
+						insertSectionStudentQuery.on('end',function(){
+						done();
+						return res.status(200).json({success:true,data: value});
+						});
+							
 						});
 					});
 					});
