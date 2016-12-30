@@ -81,6 +81,7 @@ app.post('/api/uploadAttendance',function(req,res){
 		};
 		var uploadPromise = uploadAttendace(data,client);
 		var currentTime = Date.now();
+		console.log(currentTime.getTime());
 		uploadPromise.then(function(value){
 			if(value == 'done'){
 				done();
@@ -105,6 +106,27 @@ function uploadAttendace(data,client)
 		});
 	});
 }
+
+/***
+Api for teacher to get a class attendance after 5 minutes of request
+***/
+
+app.post('/api/getAttendance',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			//datetime at which request of taking attendance by teacher was sent to all students
+			datetime: req.body.datetime	,
+			sst_id: req.body.sst_id
+		}
+		var sstinfoPromise = getinfoSST(data.sst_id,client);
+		sstinfoPromise.then(function(value){
+			var result = value[0];
+
+		});
+	});
+});
+
 /***
 Api for teacher to send a class attendance request
 ***/
@@ -147,12 +169,6 @@ app.post('/api/takeAttendance',function(req,res){
 
 
 
-/***
-Api for teacher to ask a class attendance after particular time interval
-***/
-app.post('/api/getAttendance',function(req,res){
-
-});
 
 //Api for sending notification to class 
 app.post('/api/sendClass',function(req,res){
