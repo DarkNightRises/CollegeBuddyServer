@@ -20,20 +20,7 @@ module.exports = function(app)
 	app.get('/print', function(req, res){
 		res.end('Hello babay')
 	});
-/***
-	var api_token = req.headers['auth-token'];
-		var checkVaildUser = checkAuthToken(api_token,client,data);
-		checkVaildUser.then(function(value){
-			console.log(value);
-			if(value == 'Valid'){
-			
-			}
-		else if(value == 'Invalid'){
-				done();
-				res.status(403).json({success:false, data: 'Invalid User'})
-			}
-		});
-***/
+
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
