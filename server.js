@@ -84,29 +84,138 @@ app.post('/api/getAttendance',function(req,res){
 		var sstinfoPromise = getinfoSST(data.sst_id,client);
 		sstinfoPromise.then(function(value){
 			var result = value[0];
-			var getStudentPromise = getStudentFromSection(result['id'],client);
-			getStudentPromise.then(function(value){
-				var studentlist = value;
+			result.datetime = data.datetime;
+			console.log('In getAttendance '+JSON.stringify(result)+'		'+result.subject_id+'		'+result.datetime);
+			var istAndStdntAttPromise = insertAndgetStudentAttendanceFromSection(result,client);
+			istAndStdntAttPromise.then(function(value){
+				done();
+				res.status(200).end('done');
 			});
 
 		});
 	});
 });
+function insertAndgetStudentAttendanceFromSection(data,client){
+	return new Promise(function(resolve,reject){
+		var results = [];
+		var getAbsentQuery = client.query('Select id from student where section_id = $3 AND id not in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime,data.section_id]);
 
 
-function getStudentFromSection(section_id,client){
-return new Promise(function(resolve,reject){
-	var results = [];
-	var getStudentQuery = client.query('Select * from student where section_id = $1',[section_id]);
-	getStudentQuery.on('row',function(row){
-		results.push('row');
+		getAbsentQuery.on('row',function(row){
+			results.push(row);
+		});
+		getAbsentQuery.on('end',function(){
+			console.log(JSON.stringify(results));
+			var count = 0;
+			if(results.length>0){
+			for (var i=0;i<results.length;i++){
+				var insertStudent = results[i];
+				var insertStudentQuery = client.query('Insert into Attendance(student_id,subject_id,present,datetime) values($1,$2,$3,$4)',
+					[insertStudent['id'],data.subject_id,false,data.datetime]);
+				insertStudentQuery.on('end',function(){
+					count = count+1;
+					if(count == results.length)
+					{
+						results = [];
+						var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
+						getClassAttendanceQuery.on('row',function(row){
+							results.push(row);
+						});
+						getClassAttendanceQuery.on('end',function(){
+							console.log('Inside if'+JSON.stringify(results));
+							for(var j=0;j<results.length;j++){
+								count = 0;
+								var final_result=[];
+								var studentintest = results[j];
+								console.log('Student j id '+studentintest['id']);
+								var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
+								getStudentQuery.on('row',function(row){
+									studentintest = results[count];
+									studentintest.present = row['present'];
+									console.log(JSON.stringify(studentintest));
+									  final_result.push(studentintest);
+								});
+								getStudentQuery.on('end',function(){
+									count = count+1;
+									if(count == results.length){
+										console.log(final_result);
+									return resolve(final_result);		
+									}
+								});
+							}
+							
+						});	
+					}
+				});
+			}
+		}
+		else{
+			results = [];
+						var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
+						getClassAttendanceQuery.on('row',function(row){
+							results.push(row);
+						});
+						getClassAttendanceQuery.on('end',function(){
+							console.log('Inside'+JSON.stringify(results));
+							for(var j=0;j<results.length;j++){
+								count = 0;
+								var final_result=[];
+								var studentintest = results[j];
+								console.log('Student j id '+studentintest['id']);
+								var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
+								getStudentQuery.on('row',function(row){
+									studentintest = results[count];
+									studentintest.present = row['present'];
+									console.log(JSON.stringify(studentintest));
+									  final_result.push(studentintest);
+								});
+								getStudentQuery.on('end',function(){
+									count = count+1;
+									if(count == results.length){
+										console.log(final_result);
+									return resolve(final_result);		
+									}
+								});
+							}
+							
+						});	
+		}
+
+
+			
+		});
 	});
-	getStudentQuery.on('end',function(){
-		return resolve(results);
-	});
-});
 }
 
+function getStudentFromSection(section_id,client){
+	return new Promise(function(resolve,reject){
+		var results = [];
+		var getStudentQuery = client.query('Select * from student where section_id = $1',[section_id]);
+		getStudentQuery.on('row',function(row){
+			results.push('row');
+		});
+		getStudentQuery.on('end',function(){
+			return resolve(results);
+		});
+	});
+}
+/***
+	function to get branch_id , subject_id , section_id from Section_subject
+	_teacher table with sst_id given
+	***/
+	function getinfoSST(id,client){
+		return new Promise(function(resolve,reject){
+			var result =[];
+			var infoquery = client.query('Select * from Section_Subject_Teacher where id =$1',[id]);
+			infoquery.on('row',function(row){
+				console.log('row'+row['section_id']);
+				result.push(row);
+			});
+			infoquery.on('end',function(){
+				return resolve(result);
+			});
+		});
+	}
 /***
 Api for teacher to send a class attendance request
 ***/
@@ -308,23 +417,7 @@ app.post('/api/uploadSubject',function(req,res){
 		});
 	}
 
-/***
-	function to get branch_id , subject_id , section_id from Section_subject
-	_teacher table with sst_id given
-	***/
-	function getinfoSST(id,client){
-		return new Promise(function(resolve,reject){
-			var result =[];
-			var infoquery = client.query('Select * from Section_Subject_Teacher where id =$1',[id]);
-			infoquery.on('row',function(row){
-				console.log('row'+row['section_id']);
-				result.push(row);
-			});
-			infoquery.on('end',function(){
-				return resolve(result);
-			});
-		});
-	}
+
 
 	function checkForError(err){
 		if(err) {
@@ -486,6 +579,7 @@ app.post('/api/gcmidUpdate',function(req,res){
 	***/
 	data.dataflow = req.body.dataflow;					
 	data.email = req.body.email;
+	data.id = req.body.id;
 	pg.connect(connectionString,function(err,client,done){
 		if(err){
 			done();
@@ -604,10 +698,10 @@ function checkAuthToken(auth_token,client,data){
 	return new Promise(function(resolve,reject){
 		var connectionquery ;
 		if(data.dataflow == 0){
-			connectionquery = client.query('Select api_token from Teacher where email = $1',[data.email]);
+			connectionquery = client.query('Select api_token from Teacher where id = $1',[data.id]);
 		}
 		else if(data.dataflow == 1){
-			connectionquery = client.query('Select api_token from Student where email = $1',[data.email]);	
+			connectionquery = client.query('Select api_token from Student where id = $1',[data.id]);	
 		}
 		
 		var results = [];

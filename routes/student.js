@@ -104,8 +104,8 @@ app.post('/api/uploadAttendance',function(req,res){
 			present: req.body.present
 		};
 		var uploadPromise = uploadAttendace(data,client);
-		var currentTime = Date.now();
-		console.log(currentTime.getTime());
+		// var currentTime = Date.now();
+		// console.log(currentTime.getTime());
 		uploadPromise.then(function(value){
 			if(value == 'done'){
 				done();
