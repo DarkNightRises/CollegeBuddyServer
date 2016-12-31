@@ -20,7 +20,20 @@ module.exports = function(app)
 	app.get('/print', function(req, res){
 		res.end('Hello babay')
 	});
-
+/***
+	var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+			
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
+		});
+***/
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
@@ -97,12 +110,19 @@ Api for student to upload his attendance
 ***/
 app.post('/api/uploadAttendance',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
-		var data ={			
-			student_id: req.body.id,
+		var data ={		
+			id:req.body.id,	
+			dataflow: 1,
 			subject_id: req.body.subject_id,
 			datetime: 	req.body.datetime,
 			present: req.body.present
 		};
+	
+var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
 		var uploadPromise = uploadAttendace(data,client);
 		// var currentTime = Date.now();
 		// console.log(currentTime.getTime());
@@ -115,7 +135,15 @@ app.post('/api/uploadAttendance',function(req,res){
 				done();
 				return res.status(200).json({success:false,data:"Reload your attendance again"});
 			}
+		});		
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
 		});
+
+	
 	});
 });
 
@@ -123,7 +151,7 @@ function uploadAttendace(data,client)
 {
 	return new Promise(function(resolve,reject){
 		var executeQuery = client.query('Insert into Attendance(student_id,subject_id,datetime,present) values($1,$2,$3,$4)',
-			[data.student_id,data.subject_id,data.datetime,data.present]);
+			[data.id,data.subject_id,data.datetime,data.present]);
 		executeQuery.on('end',function(){
 			return resolve('done');
 		});
@@ -292,6 +320,36 @@ function executeSignUpQuery(data,client){
 		newquery.on('end',function(){
 			console.log('done');
 			return resolve('done');});
+		
+	});
+}
+//Promise to check auth token
+function checkAuthToken(auth_token,client,data){
+	return new Promise(function(resolve,reject){
+		var connectionquery ;
+		if(data.dataflow == 0){
+			connectionquery = client.query('Select api_token from Teacher where id = $1',[data.id]);
+		}
+		else if(data.dataflow == 1){
+			connectionquery = client.query('Select api_token from Student where id = $1',[data.id]);	
+		}
+		
+		var results = [];
+		connectionquery.on('row',function(row){
+			console.log('Row is '+ row);
+			results.push(row);
+		});
+		connectionquery.on('end',function(){
+			//console.log('auth token '+results[0].api_token+'   auth_of_user '+auth_token+'   query '+connectionquery);
+			if(results.length!=0 && results[0].api_token == auth_token){
+				console.log('valid');
+				return resolve('Valid');
+			}
+			else{
+				console.log('invalid');
+				return resolve('Invalid');
+			}
+		});
 		
 	});
 }

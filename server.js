@@ -67,7 +67,20 @@ function sendMessages(data_subject,reason_for_meesage){
 		});		
 	});
 }
-
+/***
+	var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+			
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
+		});
+***/
 
 /***
 Api for teacher to get a class attendance after 5 minutes of request
@@ -79,20 +92,36 @@ app.post('/api/getAttendance',function(req,res){
 		var data = {
 			//datetime at which request of taking attendance by teacher was sent to all students
 			datetime: req.body.datetime	,
-			sst_id: req.body.sst_id
+			sst_id: req.body.sst_id,
+			id: req.body.id,
+			dataflow: 0
 		}
-		var sstinfoPromise = getinfoSST(data.sst_id,client);
-		sstinfoPromise.then(function(value){
-			var result = value[0];
-			result.datetime = data.datetime;
-			console.log('In getAttendance '+JSON.stringify(result)+'		'+result.subject_id+'		'+result.datetime);
-			var istAndStdntAttPromise = insertAndgetStudentAttendanceFromSection(result,client);
-			istAndStdntAttPromise.then(function(value){
-				done();
-				res.status(200).end('done');
-			});
 
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+				var sstinfoPromise = getinfoSST(data.sst_id,client);
+				sstinfoPromise.then(function(value){
+					var result = value[0];
+					result.datetime = data.datetime;
+					console.log('In getAttendance '+JSON.stringify(result)+'		'+result.subject_id+'		'+result.datetime);
+					var istAndStdntAttPromise = insertAndgetStudentAttendanceFromSection(result,client);
+					istAndStdntAttPromise.then(function(value){
+						var result = value;
+						done();
+						res.status(200).json({success:true,data:result});
+					});
+				});	
+			}
+			else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
 		});
+	
+		
 	});
 });
 function insertAndgetStudentAttendanceFromSection(data,client){
@@ -108,83 +137,83 @@ function insertAndgetStudentAttendanceFromSection(data,client){
 			console.log(JSON.stringify(results));
 			var count = 0;
 			if(results.length>0){
-			for (var i=0;i<results.length;i++){
-				var insertStudent = results[i];
-				var insertStudentQuery = client.query('Insert into Attendance(student_id,subject_id,present,datetime) values($1,$2,$3,$4)',
-					[insertStudent['id'],data.subject_id,false,data.datetime]);
-				insertStudentQuery.on('end',function(){
-					count = count+1;
-					if(count == results.length)
-					{
-						results = [];
-						var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
-						getClassAttendanceQuery.on('row',function(row){
-							results.push(row);
-						});
-						getClassAttendanceQuery.on('end',function(){
-							console.log('Inside if'+JSON.stringify(results));
-							for(var j=0;j<results.length;j++){
-								count = 0;
-								var final_result=[];
-								var studentintest = results[j];
-								console.log('Student j id '+studentintest['id']);
-								var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
-								getStudentQuery.on('row',function(row){
-									studentintest = results[count];
-									studentintest.present = row['present'];
-									console.log(JSON.stringify(studentintest));
-									  final_result.push(studentintest);
-								});
-								getStudentQuery.on('end',function(){
-									count = count+1;
-									if(count == results.length){
-										console.log(final_result);
-									return resolve(final_result);		
-									}
-								});
-							}
-							
-						});	
-					}
-				});
-			}
-		}
-		else{
-			results = [];
-						var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
-						getClassAttendanceQuery.on('row',function(row){
-							results.push(row);
-						});
-						getClassAttendanceQuery.on('end',function(){
-							console.log('Inside'+JSON.stringify(results));
-							for(var j=0;j<results.length;j++){
-								count = 0;
-								var final_result=[];
-								var studentintest = results[j];
-								console.log('Student j id '+studentintest['id']);
-								var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
-								getStudentQuery.on('row',function(row){
-									studentintest = results[count];
-									studentintest.present = row['present'];
-									console.log(JSON.stringify(studentintest));
-									  final_result.push(studentintest);
-								});
-								getStudentQuery.on('end',function(){
-									count = count+1;
-									if(count == results.length){
-										console.log(final_result);
-									return resolve(final_result);		
-									}
-								});
-							}
-							
-						});	
-		}
+				for (var i=0;i<results.length;i++){
+					var insertStudent = results[i];
+					var insertStudentQuery = client.query('Insert into Attendance(student_id,subject_id,present,datetime) values($1,$2,$3,$4)',
+						[insertStudent['id'],data.subject_id,false,data.datetime]);
+					insertStudentQuery.on('end',function(){
+						count = count+1;
+						if(count == results.length)
+						{
+							results = [];
+							var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
+							getClassAttendanceQuery.on('row',function(row){
+								results.push(row);
+							});
+							getClassAttendanceQuery.on('end',function(){
+								console.log('Inside if'+JSON.stringify(results));
+								for(var j=0;j<results.length;j++){
+									count = 0;
+									var final_result=[];
+									var studentintest = results[j];
+									console.log('Student j id '+studentintest['id']);
+									var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
+									getStudentQuery.on('row',function(row){
+										studentintest = results[count];
+										studentintest.present = row['present'];
+										console.log(JSON.stringify(studentintest));
+										final_result.push(studentintest);
+									});
+									getStudentQuery.on('end',function(){
+										count = count+1;
+										if(count == results.length){
+											console.log(final_result);
+											return resolve(final_result);		
+										}
+									});
+								}
 
-
-			
-		});
+							});	
+						}
+					});
+}
+}
+else{
+	results = [];
+	var getClassAttendanceQuery = client.query('Select id,name from student where id in (Select student_id from attendance where subject_id = $1 and datetime = $2)',[data.subject_id,data.datetime]);
+	getClassAttendanceQuery.on('row',function(row){
+		results.push(row);
 	});
+	getClassAttendanceQuery.on('end',function(){
+		console.log('Inside'+JSON.stringify(results));
+		for(var j=0;j<results.length;j++){
+			count = 0;
+			var final_result=[];
+			var studentintest = results[j];
+			console.log('Student j id '+studentintest['id']);
+			var getStudentQuery = client.query('Select present from Attendance where student_id=$1',[results[count]['id']]);
+			getStudentQuery.on('row',function(row){
+				studentintest = results[count];
+				studentintest.present = row['present'];
+				console.log(JSON.stringify(studentintest));
+				final_result.push(studentintest);
+			});
+			getStudentQuery.on('end',function(){
+				count = count+1;
+				if(count == results.length){
+					console.log(final_result);
+					return resolve(final_result);		
+				}
+			});
+		}
+
+	});	
+}
+
+
+
+});
+});
 }
 
 function getStudentFromSection(section_id,client){
@@ -224,9 +253,16 @@ app.post('/api/takeAttendance',function(req,res){
 		checkForError(err);
 		var data = {
 			location: req.body.location,
-			sst_id: req.body.sst_id
+			sst_id: req.body.sst_id,
+			id: req.body.id,
+			dataflow: 0
 		};
-		data.datetime = Date.now();
+			var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+			data.datetime = Date.now();
 		var sstinfoPromise = getinfoSST(data.sst_id,client);
 		sstinfoPromise.then(function(value){
 			var result = value[0];
@@ -253,6 +289,13 @@ app.post('/api/takeAttendance',function(req,res){
 				});
 			});
 		});
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
+		});
+		
 	});
 });
 
@@ -265,9 +308,16 @@ app.post('/api/sendClass',function(req,res){
 		checkForError(err);
 		var data ={
 			description: req.body.description,
-			sst_id: req.body.sst_id
+			sst_id: req.body.sst_id,
+			id: req.body.id,
+			dataflow: 0
 		};
-		var sstinfoPromise = getinfoSST(data.sst_id,client);
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+			var sstinfoPromise = getinfoSST(data.sst_id,client);
 		sstinfoPromise.then(function(value){
 			var result = value[0];
 			console.log()
@@ -293,6 +343,13 @@ app.post('/api/sendClass',function(req,res){
 			});
 
 		});
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
+		});
+		
 	});
 });
 
@@ -337,6 +394,16 @@ app.post('/api/uploadSubject',function(req,res){
 	console.log(req.body+"  "+inputs.length);
 	pg.connect(connectionString,function(err,client,done){
 		var count =0;
+		var data ={
+			dataflow: 0,
+			id: req.body.id
+		}
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
 		for (var i=0 ;i < inputs.length;i++){
 
 			var object = inputs[i];
@@ -386,7 +453,14 @@ app.post('/api/uploadSubject',function(req,res){
 				}
 			});
 }
-});
+	
+			}
+		else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+			}
+		});
+		});
 
 });
 
@@ -578,7 +652,6 @@ app.post('/api/gcmidUpdate',function(req,res){
 	Dataflow 1 for Student
 	***/
 	data.dataflow = req.body.dataflow;					
-	data.email = req.body.email;
 	data.id = req.body.id;
 	pg.connect(connectionString,function(err,client,done){
 		if(err){
@@ -679,10 +752,10 @@ function insertinTable(data,client){
 
 		var connectionquery ;
 		if(data.dataflow == 0){
-			connectionquery = client.query('Update Teacher SET gcm_id=$1,device_id=$2 where email=$3',[data.gcm_id,data.device_id,data.email]);
+			connectionquery = client.query('Update Teacher SET gcm_id=$1,device_id=$2 where id=$3::int',[data.gcm_id,data.device_id,data.id]);
 		}
 		else if(data.dataflow == 1){
-			connectionquery = client.query('Update Student SET gcm_id=$1,device_id=$2 where email=$3',[data.gcm_id,data.device_id,data.email]);	
+			connectionquery = client.query('Update Student SET gcm_id=$1,device_id=$2 where id=$3::int',[data.gcm_id,data.device_id,data.id]);	
 		}
 		connectionquery.on('end',function(){
 			return resolve('done');	
