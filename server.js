@@ -30,7 +30,6 @@ function sendMessages(data_subject,reason_for_meesage){
 		var payloadString = {
 			"reason": ""+reason_for_meesage,
 			"data": jsonData
-
 		};
 		dataPayload = {payload:JSON.stringify(payloadString)};
 		console.log("Data Subject"+data_subject);

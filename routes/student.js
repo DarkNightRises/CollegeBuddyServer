@@ -12,7 +12,7 @@ var Promise = require('promise')
 var connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy'
 
 //For parsing post json data in API
-//Pushing
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 module.exports = function(app)
