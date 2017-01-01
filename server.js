@@ -68,6 +68,107 @@ function sendMessages(data_subject,reason_for_meesage){
 }
 
 
+
+
+/***
+API to upload test questions and create an entry in test
+***/
+app.post('/api/uploadQuestions',function(req,res){
+
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			sst_id: req.body.sst_id,
+			nameoftest: req.body.nameoftest,
+			question:req.body.question,
+			datetime: Date.now()
+		};
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,data,client);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+
+			}
+			else if (value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'});
+			}
+		});
+	});
+});
+
+function insertAndGetFromTest(data,client){
+	return new Promise(function(resolve,reject){
+
+			var insertNameOfTest = client.query('Insert into Test(nameoftest,datetime) values ($1,$2)',[data.nameoftest,data.datetime]);
+			insertNameOfTest.on('end',function(){
+				var getIdOfTest = client.query('Select id from Test where nameoftest = $1 and datetime = $2',[data.nameoftest,data.datetime]);
+				getIdOfTest.on('row',function(row){
+					data.test_id = row['id'];
+				});
+				getIdOfTest.on('end',function(){
+					var count =0,i=0,j=0;
+					var final_list_of_Question =[];
+					var final_list_of_Answer = [];
+					var questions = data.question;
+					for (i=0;i<question.length;i++){
+						var insertQuestionQuery = client.query('Insert into question(question_text) values $1',[question[i].question_text]);
+						insertQuestionQuery.on('end',function(){
+							count = count+1;
+							if(count == questions.length){
+								count =0;
+								for (i=0;i<questions.length;i++){
+								var getQuestionId = client.query('Select id from question where question_text = $1')
+								getQuestionId.on('row',function(row){
+									final_list_of_Question.push(row);
+								});
+								getQuestionId.on('end',function(){
+									count = count+1;
+									if(count == questions.length){
+										count = 0;
+										for (i=0;i<questions.length;i++){
+											for (j=0;j<questions[i].length;j++){
+												var insertAnswerQuery = client.query('Insert into choices(choice_text,question_id) values ($1,$2)',[(questions[i].choices)[j],final_list_of_Question[i]['id']]);
+													insertAnswerQuery.on('end',function(){
+														count = count+1;
+														if(count == questions.length*4){
+															count =0;
+																for(i=0;i<questions.length;i++){
+																var getAnswerIdQuery = client.query('Select * from choices where question_id = $1',[final_list_of_Question]);
+																getAnswerIdQuery.on('row',function(row){
+																	var test_ans = {};
+																	test_ans.answer_id = row.id;
+																	test_ans.question_id = final_list_of_Question[Math.floor(count%4)]['id']; 
+																	final_list_of_Answer.push(test_ans);
+																});
+																getAnswerIdQuery.on('end',function(){
+																	count = count+1;
+																	if(count == questions.length){
+																		console.log('Question\n '+JSON.stringify(final_list_of_Question));
+																		console.log('Answers\n  '+JSON.stringify(final_list_of_Answer));
+																		return resolve('done');
+																	}
+																});
+															}
+														}
+													});										
+											} 
+										}
+
+
+									}
+								});
+							}
+							}
+						});
+					}
+				});
+			});
+	});
+}
+
+
 /***
 Api for teacher to get a class attendance after 5 minutes of request
 ***/
@@ -103,7 +204,7 @@ app.post('/api/getAttendance',function(req,res){
 			}
 			else if(value == 'Invalid'){
 				done();
-				res.status(403).json({success:false, data: 'Invalid User'})
+				res.status(403).json({success:false, data: 'Invalid User'});
 			}
 		});
 
@@ -252,8 +353,8 @@ app.post('/api/getReview',function(req,res){
 					var results = value;
 					var getSubjectAndStudentNamePromise = getSubjectAndStudentName(results,client);
 					getSubjectAndStudentNamePromise.then(function(value){
-					 console.log(JSON.stringify(value));
-					 	return res.status(200).json({success:true, data:value});
+						console.log(JSON.stringify(value));
+						return res.status(200).json({success:true, data:value});
 					})
 					// console.log(JSON.stringify(value));
 					// return res.end('done');

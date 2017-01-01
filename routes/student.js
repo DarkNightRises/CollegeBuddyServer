@@ -24,7 +24,6 @@ module.exports = function(app)
 
 
 
-
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
