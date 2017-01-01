@@ -22,6 +22,9 @@ module.exports = function(app)
 		res.end('Hello babay')
 	});
 
+
+
+
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
@@ -48,7 +51,7 @@ app.post('/api/loginStudent',function(req,res){
 
 app.get('/api/getCollegeList',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
-			if(err){
+		if(err){
 			done();
 			console.log(err)
 			return res.status(500).json({success: false, data: 'Connection to database failed'});
@@ -57,21 +60,21 @@ app.get('/api/getCollegeList',function(req,res){
 		var query = 'Select * from College';
 		var executePromise = executeQuery(query,client);
 		executePromise.then(function(value){
-		results = value;
-		if(results.length == 0)
-		{
-			return res.status(200).json({success:true, data:'No college yet'});
-		}
-		else{
+			results = value;
+			if(results.length == 0)
+			{
+				return res.status(200).json({success:true, data:'No college yet'});
+			}
+			else{
 				return res.status(200).json({success:true, data:results});
-		
-		}
+
+			}
 		});
 	});
 });
 app.get('/api/getBranch',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
-			if(err){
+		if(err){
 			done();
 			console.log(err)
 			return res.status(500).json({success: false, data: 'Connection to database failed'});
@@ -80,19 +83,117 @@ app.get('/api/getBranch',function(req,res){
 		var query = 'Select * from Branch';
 		var executePromise = executeQuery(query,client);
 		executePromise.then(function(value){
-		results = value;
-		if(results.length == 0)
-		{
-			return res.status(200).json({success:true, data:'No branches yet'});
-		}
-		else{
+			results = value;
+			if(results.length == 0)
+			{
+				return res.status(200).json({success:true, data:'No branches yet'});
+			}
+			else{
 				return res.status(200).json({success:true, data:results});
-		
-		}
+
+			}
 		});
 	});
 });
 
+/***
+API for student to post a review for a particular teacher
+***/
+app.post('/api/sendReview',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		if(err){
+			done();
+			console.log(err)
+			return res.status(500).json({success: false, data: 'Connection to database failed'});
+		}	
+		var data = {
+			dataflow: 1,
+			id:req.body.id,
+			sst_id: req.body.sst_id,
+			review_text: req.body.review_text
+		};
+
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+			var getinfoSSTPromise = getinfoSST(data.sst_id,client);
+			getinfoSSTPromise.then(function(value){
+					var sst_data = value[0];
+					var insertintoReviewPromise = insertintoReview(data,sst_data,client);
+					insertintoReviewPromise.then(function(value){
+						if(value == 'done'){
+							done();
+							return res.status(200).json({success:true, data: 'Your review has been Succesfully uploaded'});
+						}
+					});
+			});
+		}	
+	else{
+	done();
+		res.status(403).json({success:false, data: 'Invalid User'})
+	
+	}
+});
+	
+	});
+});
+
+function insertintoReview(student_data,sst_data,client){
+	return new Promise(function(resolve,reject){
+		var insertQuery = client.query('Insert into Review(student_id,review_text,teacher_id,subject_id) values ($1,$2,$3,$4)',
+			[student_data.id,student_data.review_text,sst_data.teacher_id,sst_data.subject_id]);
+		insertQuery.on('end',function(){
+			return resolve('done');
+		})
+	});
+}
+
+//function to get name of subject,branch , section with their respective ids 
+function getSubBranchSectCollege(test_data,client)
+{
+	return new Promise(function(resolve,reject){
+		var data = {};
+		var getSubquery = client.query('Select name from subject where id = $1',[test_data.subject_id]);
+		getSubquery.on('row',function(row){
+			data.subject_name = row['name'];
+		});
+		getSubquery.on('end',function(){
+			var getSecquery = client.query('Select * from section where id = $1',[test_data.section_id]);
+			getSecquery.on('row',function(row){
+				data.section = row['section'];
+				data.year = row['year'];
+				data.branch_id = row['branch_id'];
+			});
+			getSecquery.on('end',function(){
+				var getBranchquery = client.query('Select name from branch where id = $1',[data.branch_id]);
+				getBranchquery.on('row',function(row){
+					data.branch_name = row['name'];
+				});
+				getBranchquery.on('end',function(){
+					return resolve(data);
+				});
+			});
+		});
+	});
+}
+/***
+	function to get branch_id , subject_id , section_id from Section_subject
+	_teacher table with sst_id given
+	***/
+	function getinfoSST(id,client){
+		return new Promise(function(resolve,reject){
+			var result =[];
+			var infoquery = client.query('Select * from Section_Subject_Teacher where id =$1',[id]);
+			infoquery.on('row',function(row){
+				console.log('row'+row['section_id']);
+				result.push(row);
+			});
+			infoquery.on('end',function(){
+				return resolve(result);
+			});
+		});
+	}
 /***
 Api for student to upload his attendance
 ***/
@@ -105,13 +206,13 @@ app.post('/api/uploadAttendance',function(req,res){
 			datetime: 	req.body.datetime,
 			present: req.body.present
 		};
-	
-var api_token = req.headers['auth-token'];
+
+		var api_token = req.headers['auth-token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
 			if(value == 'Valid'){
-		var uploadPromise = uploadAttendace(data,client);
+				var uploadPromise = uploadAttendace(data,client);
 		// var currentTime = Date.now();
 		// console.log(currentTime.getTime());
 		uploadPromise.then(function(value){
@@ -124,14 +225,14 @@ var api_token = req.headers['auth-token'];
 				return res.status(200).json({success:false,data:"Reload your attendance again"});
 			}
 		});		
-			}
-		else if(value == 'Invalid'){
-				done();
-				res.status(403).json({success:false, data: 'Invalid User'})
-			}
-		});
+	}
+	else if(value == 'Invalid'){
+		done();
+		res.status(403).json({success:false, data: 'Invalid User'})
+	}
+});
 
-	
+
 	});
 });
 
@@ -161,7 +262,7 @@ app.post('/api/signupStudent',function(req,res){
 		college_id: req.body.college_id,
 		student_number: req.body.student_number
 	};	
-pg.connect(connectionString, function(err,client,done){
+	pg.connect(connectionString, function(err,client,done){
 		if(err){
 			done();
 			console.log(err)
@@ -193,14 +294,14 @@ pg.connect(connectionString, function(err,client,done){
 					var executeSign  = executeSignUpQuery(data,client);
 					console.log('got section_i '+data.section_id);
 					executeSign.then(function(value){
-					console.log('Results in signup is '+value);
+						console.log('Results in signup is '+value);
 						promise = executeQuery(queryString,client);
 						promise.then(function(value){
-					console.log("Fuccccc    "+data.section_id+"	"+value[0]['id']);
-					var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1,$2)',[data.section_id,value[0]['id']]);
-						insertSectionStudentQuery.on('end',function(){
-				return res.status(200).json({success:true,data: value});
-						});
+							console.log("Fuccccc    "+data.section_id+"	"+value[0]['id']);
+							var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1,$2)',[data.section_id,value[0]['id']]);
+							insertSectionStudentQuery.on('end',function(){
+								return res.status(200).json({success:true,data: value});
+							});
 							
 
 
@@ -208,10 +309,10 @@ pg.connect(connectionString, function(err,client,done){
 					});
 				}
 				else{
-				var insertSectionQuery = ('Insert into section(branch_id,section,year) values ('+branch_id+','+section+','+year+')');
-				var insertSectionPromise = executeInsertQuery(insertSectionQuery,client);
-				insertSectionPromise.then(function(value){
-					
+					var insertSectionQuery = ('Insert into section(branch_id,section,year) values ('+branch_id+','+section+','+year+')');
+					var insertSectionPromise = executeInsertQuery(insertSectionQuery,client);
+					insertSectionPromise.then(function(value){
+
 					// results = [];
 					// results = value;
 					// var sec_arr = results[0];
@@ -220,36 +321,36 @@ pg.connect(connectionString, function(err,client,done){
 					console.log('inside isp new');
 					// data.section_id = section_id;
 					sectionGetQuery = ('Select id from section where section = '+section+' AND branch_id = '+branch_id+
-				' AND year = '+year);
+						' AND year = '+year);
 					sectionPromise = executeQuery(sectionGetQuery,client);
 					sectionPromise.then(function(value){
-						 results = [];
-					 results = value;
-					 var sec_arr = results[0];
+						results = [];
+						results = value;
+						var sec_arr = results[0];
 						var section_id = sec_arr['id'];
 						data.section_id = section_id;
 						console.log('got section_id in'+section_id);
-					var executeSignQuery  = executeSignUpQuery(data,client);
-					executeSignQuery.then(function(value){
-						promise = executeQuery(queryString,client);
-						console.log('inside 2dd');
-						promise.then(function(value){
-						console.log('inside dd');
-						var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1::int,$2::int)',[data.section_id,value[0]['id']]);
-						insertSectionStudentQuery.on('end',function(){
-						done();
-						return res.status(200).json({success:true,data: value});
+						var executeSignQuery  = executeSignUpQuery(data,client);
+						executeSignQuery.then(function(value){
+							promise = executeQuery(queryString,client);
+							console.log('inside 2dd');
+							promise.then(function(value){
+								console.log('inside dd');
+								var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1::int,$2::int)',[data.section_id,value[0]['id']]);
+								insertSectionStudentQuery.on('end',function(){
+									done();
+									return res.status(200).json({success:true,data: value});
+								});
+
+							});
 						});
-							
-						});
-					});
 					});
 				});					
-				}
-			})
-		});
+}
+})
+});
 
-	});
+});
 
 });
 
@@ -266,7 +367,7 @@ function executeQuery(quer,client){
 			results.push(row);
 		});
 		query.on('end', function()  {
-		
+
 			return resolve(results);
 		});
 	});

@@ -106,7 +106,7 @@ app.post('/api/getAttendance',function(req,res){
 				res.status(403).json({success:false, data: 'Invalid User'})
 			}
 		});
-	
+
 		
 	});
 });
@@ -231,6 +231,100 @@ function getStudentFromSection(section_id,client){
 			});
 		});
 	}
+
+/***
+Api for teacher to send a class attendance request
+***/
+app.post('/api/getReview',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			dataflow:0,			
+		};
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			console.log(value);
+			if(value == 'Valid'){
+				var getReviewInfoPromise = getReviewInfo(data,client);
+				getReviewInfoPromise.then(function(value){
+					var results = value;
+					var getSubjectAndStudentNamePromise = getSubjectAndStudentName(results,client);
+					getSubjectAndStudentNamePromise.then(function(value){
+					 console.log(JSON.stringify(value));
+					 	return res.status(200).json({success:true, data:value});
+					})
+					// console.log(JSON.stringify(value));
+					// return res.end('done');
+				});
+			}
+			else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+
+			}
+		});
+	});
+});
+/***
+Promise to get subject name and student name
+***/
+function getSubjectAndStudentName(data,client){
+	return new Promise(function(resolve,reject){
+		var count = 0;
+		var resultswithsubjectName = [];
+		var final_result = [];
+		for (var i =0;i<data.length;i++){
+			var getSubjectNameQuery = client.query('Select name from Subject where id = $1',[data[i].subject_id]);
+			getSubjectNameQuery.on('row',function(row){
+				var test_data = row;
+				test_data.review_text = data[count].review_text;
+				resultswithsubjectName.push(test_data);
+			})
+			getSubjectNameQuery.on('end',function(){
+				count = count+1;
+				if(count == data.length){
+					count =0;
+					for(var j=0;j<data.length;j++){
+						var getStudentNameQuery = client.query('Select name from student where id = $1',[data[j].student_id]);
+						getStudentNameQuery.on('row',function(row){
+							var test_data = {};
+							test_data.student_name = row['name'];
+							test_data.review_text = resultswithsubjectName[count].review_text;
+							test_data.subject_name = resultswithsubjectName[count].name;
+							final_result.push(test_data);
+						});
+						getStudentNameQuery.on('end',function(){
+							count = count+1;
+							if(count == data.length){
+								return resolve(final_result);
+							}
+						});
+
+					}
+
+				}
+			});
+		}
+	});
+
+}
+/***
+Promise to get all reviews for a particular teacher
+***/
+function getReviewInfo(data,client){
+	return new Promise(function(resolve,reject){
+		var results = [];
+		var getReviewsQuery = client.query('SELECT * from review where teacher_id = $1',[data.id]);
+		getReviewsQuery.on('row',function(row){
+			results.push(row);
+		});
+		getReviewsQuery.on('end',function(){
+			return resolve(results);
+		});
+	});
+}
 /***
 Api for teacher to send a class attendance request
 ***/
@@ -243,16 +337,16 @@ app.post('/api/takeAttendance',function(req,res){
 			id: req.body.id,
 			dataflow: 0
 		};
-			var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth-token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
 			if(value == 'Valid'){
-			data.datetime = Date.now();
-		var sstinfoPromise = getinfoSST(data.sst_id,client);
-		sstinfoPromise.then(function(value){
-			var result = value[0];
-			console.log()
+				data.datetime = Date.now();
+				var sstinfoPromise = getinfoSST(data.sst_id,client);
+				sstinfoPromise.then(function(value){
+					var result = value[0];
+					console.log()
 			//SBSC ----> Subject Branch Section College
 			var getSBSCpromise = getSubBranchSectCollege(result,client);
 			getSBSCpromise.then(function(value){
@@ -276,13 +370,13 @@ app.post('/api/takeAttendance',function(req,res){
 			});
 		});
 			}
-		else if(value == 'Invalid'){
+			else if(value == 'Invalid'){
 				done();
 				res.status(403).json({success:false, data: 'Invalid User'})
 			}
 		});
-		
-	});
+
+});
 });
 
 
@@ -303,10 +397,10 @@ app.post('/api/sendClass',function(req,res){
 		checkVaildUser.then(function(value){
 			console.log(value);
 			if(value == 'Valid'){
-			var sstinfoPromise = getinfoSST(data.sst_id,client);
-		sstinfoPromise.then(function(value){
-			var result = value[0];
-			console.log()
+				var sstinfoPromise = getinfoSST(data.sst_id,client);
+				sstinfoPromise.then(function(value){
+					var result = value[0];
+					console.log()
 			//SBSC ----> Subject Branch Section College
 			var getSBSCpromise = getSubBranchSectCollege(result,client);
 			getSBSCpromise.then(function(value){
@@ -330,7 +424,7 @@ app.post('/api/sendClass',function(req,res){
 
 		});
 			}
-		else if(value == 'Invalid'){
+			else if(value == 'Invalid'){
 				done();
 				res.status(403).json({success:false, data: 'Invalid User'})
 			}
@@ -390,28 +484,28 @@ app.post('/api/uploadSubject',function(req,res){
 		checkVaildUser.then(function(value){
 			console.log(value);
 			if(value == 'Valid'){
-		for (var i=0 ;i < inputs.length;i++){
+				for (var i=0 ;i < inputs.length;i++){
 
-			var object = inputs[i];
-			console.log(object.name);
-			var name = '\''+object.name+'\'';
-			var code = '\''+object.subject_code+'\'';
-			var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
-			console.log(subquery+" \n "+i);
-			var insertionPromise = insertSubject(subquery,client);
-			insertionPromise.then(function(value){
-				count = count+1;
-				console.log('count is '+count);
-				if(count==inputs.length){
-					console.log('Inside insert subjid end ');
-					count = 0;
-					for (i=0;i<inputs.length;i++){
-						var object = inputs[i];
-						var getIdPromise = getSubjectId(object.subject_code,client,results);
-						getIdPromise.then(function(value){
-							results = value;
-							count = count+1;
-							if(count == inputs.length){
+					var object = inputs[i];
+					console.log(object.name);
+					var name = '\''+object.name+'\'';
+					var code = '\''+object.subject_code+'\'';
+					var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
+					console.log(subquery+" \n "+i);
+					var insertionPromise = insertSubject(subquery,client);
+					insertionPromise.then(function(value){
+						count = count+1;
+						console.log('count is '+count);
+						if(count==inputs.length){
+							console.log('Inside insert subjid end ');
+							count = 0;
+							for (i=0;i<inputs.length;i++){
+								var object = inputs[i];
+								var getIdPromise = getSubjectId(object.subject_code,client,results);
+								getIdPromise.then(function(value){
+									results = value;
+									count = count+1;
+									if(count == inputs.length){
 							//	return res.status(200).json({success:true, data:results});
 							console.log('Inside get subjid end '+results);
 							count = 0;
@@ -434,19 +528,19 @@ app.post('/api/uploadSubject',function(req,res){
 								});}
 							}
 						});
-					}
+							}
 
-				}
-			});
+						}
+					});
 }
-	
-			}
-		else if(value == 'Invalid'){
-				done();
-				res.status(403).json({success:false, data: 'Invalid User'})
-			}
-		});
-		});
+
+}
+else if(value == 'Invalid'){
+	done();
+	res.status(403).json({success:false, data: 'Invalid User'})
+}
+});
+});
 
 });
 
@@ -496,8 +590,8 @@ app.post('/api/signupTeacher', function(req, res) {
 	var data = {
 		name: req.body.name, 
 		email: req.body.email, 
-		mobile_no: req.body.mobile_no,password: 
-		req.body.password,
+		mobile_no: req.body.mobile_no,
+		password: req.body.password,
 		college_name: req.body.college_name};
 		
 		console.log(data)
