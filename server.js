@@ -82,13 +82,22 @@ app.post('/api/uploadQuestions',function(req,res){
 			sst_id: req.body.sst_id,
 			nameoftest: req.body.nameoftest,
 			question:req.body.question,
-			datetime: Date.now()
+			datetime: Date.now(),
+			dataflow: 0
 		};
+		console.log('Inside insandet Test Id ');
 		var api_token = req.headers['auth-token'];
-		var checkVaildUser = checkAuthToken(api_token,data,client);
+		console.log(api_token+'	'+data.id+'	'+data.dataflow);
+		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
-			if(value == 'Valid'){
+			console.log('Inside insandet Test Id ');
 
+			if(value == 'Valid'){
+				var insertAndGetFromTestPromise = insertAndGetFromTest(data,client);
+				insertAndGetFromTestPromise.then(function(value){
+					console.log('done');
+					res.status(200).json({success:true, data: value});
+				});
 			}
 			else if (value == 'Invalid'){
 				done();
@@ -100,72 +109,103 @@ app.post('/api/uploadQuestions',function(req,res){
 
 function insertAndGetFromTest(data,client){
 	return new Promise(function(resolve,reject){
+		console.log('Inside insandet Test Id ');
 
-			var insertNameOfTest = client.query('Insert into Test(nameoftest,datetime) values ($1,$2)',[data.nameoftest,data.datetime]);
-			insertNameOfTest.on('end',function(){
-				var getIdOfTest = client.query('Select id from Test where nameoftest = $1 and datetime = $2',[data.nameoftest,data.datetime]);
-				getIdOfTest.on('row',function(row){
-					data.test_id = row['id'];
-				});
-				getIdOfTest.on('end',function(){
-					var count =0,i=0,j=0;
-					var final_list_of_Question =[];
-					var final_list_of_Answer = [];
-					var questions = data.question;
-					for (i=0;i<question.length;i++){
-						var insertQuestionQuery = client.query('Insert into question(question_text) values $1',[question[i].question_text]);
-						insertQuestionQuery.on('end',function(){
-							count = count+1;
-							if(count == questions.length){
-								count =0;
-								for (i=0;i<questions.length;i++){
-								var getQuestionId = client.query('Select id from question where question_text = $1')
-								getQuestionId.on('row',function(row){
-									final_list_of_Question.push(row);
-								});
-								getQuestionId.on('end',function(){
-									count = count+1;
-									if(count == questions.length){
-										count = 0;
-										for (i=0;i<questions.length;i++){
-											for (j=0;j<questions[i].length;j++){
-												var insertAnswerQuery = client.query('Insert into choices(choice_text,question_id) values ($1,$2)',[(questions[i].choices)[j],final_list_of_Question[i]['id']]);
-													insertAnswerQuery.on('end',function(){
-														count = count+1;
-														if(count == questions.length*4){
-															count =0;
-																for(i=0;i<questions.length;i++){
-																var getAnswerIdQuery = client.query('Select * from choices where question_id = $1',[final_list_of_Question]);
-																getAnswerIdQuery.on('row',function(row){
-																	var test_ans = {};
-																	test_ans.answer_id = row.id;
-																	test_ans.question_id = final_list_of_Question[Math.floor(count%4)]['id']; 
-																	final_list_of_Answer.push(test_ans);
-																});
-																getAnswerIdQuery.on('end',function(){
-																	count = count+1;
-																	if(count == questions.length){
-																		console.log('Question\n '+JSON.stringify(final_list_of_Question));
-																		console.log('Answers\n  '+JSON.stringify(final_list_of_Answer));
-																		return resolve('done');
-																	}
-																});
-															}
-														}
-													});										
-											} 
-										}
-
-
-									}
-								});
-							}
-							}
-						});
-					}
-				});
+		var insertNameOfTest = client.query('Insert into Test(nameoftest,datetime) values ($1,$2)',[data.nameoftest,data.datetime]);
+		insertNameOfTest.on('end',function(){
+			var getIdOfTest = client.query('Select id from Test where nameoftest = $1 and datetime = $2',[data.nameoftest,data.datetime]);
+			getIdOfTest.on('row',function(row){
+				data.test_id = row['id'];
 			});
-	});
+			getIdOfTest.on('end',function(){
+				var count =0,i=0,j=0;
+				var final_list_of_Question =[];
+				var final_list_of_Answer = [];
+				var questions = data.question;
+				console.log('Test Id '+data.test_id);
+				for (i=0;i<questions.length;i++){
+					
+//var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
+var insertQuestionQuery = client.query('Insert into question(question_text) Select * from (Select $1::text) AS tmp where not exists (Select id from question where question_text = $1::text) LIMIT 1',[questions[i].question_text]);					
+insertQuestionQuery.on('end',function(){
+	count = count+1;
+	if(count == questions.length){
+		count =0;
+		for (i=0;i<questions.length;i++){
+			var getQuestionId = client.query('Select id from question where question_text = $1',[questions[i].question_text]);
+			getQuestionId.on('row',function(row){
+				final_list_of_Question.push(row);
+			});
+			getQuestionId.on('end',function(){
+				count = count+1;
+				if(count == questions.length){
+					console.log(JSON.stringify(final_list_of_Question));
+
+					count = 0;
+
+					for (i=0;i<questions.length;i++){
+						console.log('Length '+(questions[i].choices.length));
+
+						for (j=0;j<questions[i].choices.length;j++){
+							var choices = [];
+							choices = questions[i].choices;
+							console.log('Inside i and j '+choices[j].choice_text);
+							var insertAnswerQuery = client.query('Insert into choices(choice_text,question_id) Select * from (Select $1::text,$2::int) AS tmp where not exists (Select id from choices where choice_text = $1::text and question_id = $2::int)',[(questions[i].choices)[j].choice_text,final_list_of_Question[i]['id']]);			
+							insertAnswerQuery.on('end',function(){
+								count = count+1;
+								if(count == questions.length*4){
+									count =0;
+									for(i=0;i<questions.length;i++){
+										var getAnswerIdQuery = client.query('Select * from choices where question_id = $1::int',[(final_list_of_Question[i]).id]);
+										getAnswerIdQuery.on('row',function(row){
+											var test_ans = {};
+											test_ans.answer_id = row.id;
+											test_ans.question_id = final_list_of_Question[Math.floor(count%4)]['id']; 
+											final_list_of_Answer.push(test_ans);
+										});
+										getAnswerIdQuery.on('end',function(){
+											count = count+1;
+											if(count == questions.length){
+												console.log('Question\n '+JSON.stringify(final_list_of_Question));
+												console.log('Answers\n  '+JSON.stringify(final_list_of_Answer));
+												count = 0;
+											//				var insertAnswerQuery = client.query('Insert into choices(choice_text,question_id) Select * from (Select $1::text,$2::int) AS tmp where not exists (Select id from choices where choice_text = $1::text and question_id = $2::int)',[(questions[i].choices)[j].choice_text,final_list_of_Question[i].id]);			
+											
+											for (i=0;i<questions.length;i++){
+												var correctChoiceofquestion  = questions[i].correctchoice +(i*4)-1;
+												console.log('Correct choice of question'+ correctChoiceofquestion);
+												var insertCorrectAnsweerQuery = client.query('Insert into CorrectChoice(choice_id,question_id) Select * from (Select $1::int,$2::int) AS tmp where not exists (Select id from CorrectChoice where choice_id = $1::int and question_id = $2::int)',[final_list_of_Answer[correctChoiceofquestion].answer_id,final_list_of_Question[i].id]);
+												insertCorrectAnsweerQuery.on('end',function(){
+													count = count+1;
+													if(count == questions.length)
+													{
+														var test_idObject = {
+															test_id: data.test_id
+														};
+														final_list_of_Answer.push(test_idObject)
+														return resolve(final_list_of_Answer);
+													}			
+												});
+											}
+
+										}
+									});
+}
+}
+});										
+} 
+}
+
+
+}
+});
+}
+}
+});
+}
+});
+});
+});
 }
 
 
@@ -951,6 +991,7 @@ function insertinTable(data,client){
 function checkAuthToken(auth_token,client,data){
 	return new Promise(function(resolve,reject){
 		var connectionquery ;
+		
 		if(data.dataflow == 0){
 			connectionquery = client.query('Select api_token from Teacher where id = $1',[data.id]);
 		}
