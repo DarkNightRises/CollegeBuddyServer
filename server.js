@@ -24,22 +24,31 @@ function sendMessages(data_subject,reason_for_meesage){
 	var messageAddress = data_subject.subject_name+data_subject.section+data_subject.branch_name+data_subject.year;
 	
 	
-	var jsonData = JSON.stringify(data_subject);
-	console.log('Go tjson data'+jsonData);
+	var jsonData = data_subject;
+	console.log('Go tjson data'+jsonData+'	'+messageAddress);
 	if(reason_for_meesage == 'attendance'){
 		var payloadString = {
 			"reason": ""+reason_for_meesage,
 			"data": jsonData
 		};
-		dataPayload = {payload:JSON.stringify(payloadString)};
+		dataPayload = {payload:(payloadString)};
 		console.log("Data Subject"+data_subject);
+	}
+	else if(reason_for_meesage == 'sendTest'){
+	var payloadString = {
+			"reason": ""+reason_for_meesage,
+			"data": jsonData
+		};
+		dataPayload = {payload:(payloadString)};
+		console.log("Data Subject"+data_subject);
+	
 	}
 	else{
 		var payloadString = {
 			"reason":""+ reason_for_meesage,
 			"data": "Just fun with notification"
 		};
-		dataPayload = {payload:JSON.stringify(payloadString)};
+		dataPayload = {payload:(payloadString)};
 	}
 	console.log(messageAddress);
 	return new Promise(function(resolve,reject){
@@ -118,20 +127,57 @@ function sendMessages(data_subject,reason_for_meesage){
 // 			}
 // 			});
 // 		}
-		
+
 // 	});
 // }
 
 //return of json of uploadQuestion will be the input for send test api
 app.post('/api/sendTest',function(req,res){
-pg.connect(connectionString,function(err,client,done){
-checkForError(err);
-var data = {
-	id: req.body.id,
-	dataflow: 0,
-	test_id : req.body.data[req.body.data.length -1].test_id
-}		
-});
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			dataflow: 0,
+			test_id : req.body.test_id,
+			sst_id: req.body.sst_id
+		};
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+		console.log('Auth token '+value);
+			if(value == 'Valid'){
+		var sstinfoPromise = getinfoSST(data.sst_id,client);
+				sstinfoPromise.then(function(value){
+						var result = value[0];
+					console.log('Result is '+JSON.stringify(result));
+			//SBSC ----> Subject Branch Section College
+			var getSBSCpromise = getSubBranchSectCollege(result,client);
+			getSBSCpromise.then(function(value){
+				var finaldata = value;
+				finaldata.subject_id = result.subject_id;
+				finaldata.sst_id = data.sst_id;
+				finaldata.test_id = data.test_id;
+			var sendPromise = sendMessages(finaldata,'sendTest');
+				sendPromise.then(function(value){
+					console.log(value);
+										if(value == 'Sent'){
+						done();
+						return res.end('done');
+					}
+				})
+				.catch(function(err){
+					done();
+					return res.status(403).json({success:false, data: err});
+				});
+					});		
+			});
+			}
+			else if(value == 'Invalid'){
+ 				done();
+				res.status(403).json({success:false, data: 'Invalid User'});
+			}
+	});		
+	});
 });
 
 /***
