@@ -120,8 +120,8 @@ app.post('/api/sendReview',function(req,res){
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
-			var getinfoSSTPromise = getinfoSST(data.sst_id,client);
-			getinfoSSTPromise.then(function(value){
+				var getinfoSSTPromise = getinfoSST(data.sst_id,client);
+				getinfoSSTPromise.then(function(value){
 					var sst_data = value[0];
 					var insertintoReviewPromise = insertintoReview(data,sst_data,client);
 					insertintoReviewPromise.then(function(value){
@@ -130,15 +130,15 @@ app.post('/api/sendReview',function(req,res){
 							return res.status(200).json({success:true, data: 'Your review has been Succesfully uploaded'});
 						}
 					});
-			});
-		}	
-	else{
-	done();
-		res.status(403).json({success:false, data: 'Invalid User'})
-	
-	}
-});
-	
+				});
+			}	
+			else{
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'})
+
+			}
+		});
+
 	});
 });
 
@@ -374,13 +374,23 @@ app.post('/api/giveTest',function(req,res){
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
-				var uploadAnswerPromise = uploadAnswer(data,client);
-				uploadAnswerPromise.then(function(value){
-					if(value == 'done'){
-						done();
-						return res.status(200).json({success:true,data: 'Test Upload Successful'});
+				var checkIsTestActivePromise = checkIsTestActive(data,client);
+				checkIsTestActivePromise.then(function(value){
+					if(value == true){
+						var uploadAnswerPromise = uploadAnswer(data,client);
+						uploadAnswerPromise.then(function(value){
+							if(value == 'done'){
+								done();
+								return res.status(200).json({success:true,data: 'Test Upload Successful'});
+							}
+						});
 					}
-				});
+					else{
+								return res.status(200).json({success:true,data: 'Test Already Over'});
+						
+					}
+				})
+				
 			}
 			else if(value == 'Invalid'){
 				done();
@@ -390,7 +400,18 @@ app.post('/api/giveTest',function(req,res){
 	});
 });
 
-
+function checkIsTestActive(data,client){
+	return new Promise(function(resolve,reject){
+		var isactive = false;
+		var checkIsTestActiveQuery = client.query('Select isactive from Test where id = $1',[data.test_id]);
+		checkIsTestActiveQuery.on('row',function(row){
+			isactive = row.isactive;
+		});
+		checkIsTestActiveQuery.on('end',function(){
+			return resolve(isactive);
+		})
+	});
+}	
 function uploadAnswer(data,client){
 	return new Promise(function(resolve,reject){
 		console.log('Inside upload answer');
@@ -398,18 +419,18 @@ function uploadAnswer(data,client){
 		var test_id = data.test_id;
 		var i=0,count =0 ;
 		for(i=0;i<choices_list.length;i++){
-		console.log('Inside upload answer');
+			console.log('Inside upload answer');
 		//var insertQuestionQuery = client.query('Insert into question(question_text) Select * from (Select $1::text) AS tmp where not exists (Select id from question where question_text = $1::text) LIMIT 1',[questions[i].question_text]);					
-			var insertAnswerQuery = client.query('Insert into answer(test_id,student_id,choice_id) Select * from (Select $1::int,$2::int,$3::int) AS tmp where not exists (Select id from answer where test_id = $1::int and student_id = $2::int and choice_id = $3::int) LIMIT 1',[test_id,data.id,choices_list[i].choice_id]);
-			insertAnswerQuery.on('end',function(value){
-				count = count+1;
-				if(count == choices_list.length){
+		var insertAnswerQuery = client.query('Insert into answer(test_id,student_id,choice_id) Select * from (Select $1::int,$2::int,$3::int) AS tmp where not exists (Select id from answer where test_id = $1::int and student_id = $2::int and choice_id = $3::int) LIMIT 1',[test_id,data.id,choices_list[i].choice_id]);
+		insertAnswerQuery.on('end',function(value){
+			count = count+1;
+			if(count == choices_list.length){
 				return resolve('done');
 			}
-			});
-		}
+		});
+	}
 
-	});
+});
 }
 
 
@@ -501,4 +522,13 @@ function checkAuthToken(auth_token,client,data){
 		
 	});
 }
+
+
+	function checkForError(err){
+		if(err) {
+			done();
+			console.log(err);
+			return res.status(500).json({success: false, data: err});
+		}
+	}
 }

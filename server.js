@@ -138,12 +138,12 @@ app.post('/api/stopTest',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
 		var data = {
-			id: req.boyd.id,
+			id: req.body.id,
 			dataflow: 0,
 			sst_id: req.body.sst_id,
 			test_id: req.body.test_id
 		}
-		var api_token = req.headers('auth_token');
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
@@ -165,7 +165,7 @@ app.post('/api/stopTest',function(req,res){
 
 function stopTest(data,client){
 	return new Promise(function(resolve,reject){
-		var stopTestQuery = client.query('Update Test set isactive = $1 where id = $2',[false,data.test_id]);
+		var stopTestQuery = client.query('Update Test set isactive = $1 where id = $2 and sst_id = $3',[false,data.test_id,data.sst_id]);
 		stopTestQuery.on('end',function(){
 			return resolve('done');
 		});
@@ -173,7 +173,7 @@ function stopTest(data,client){
 }
 function startTest(data,client){
 	return new Promise(function(resolve,reject){
-		var startTestQuery = client.query('Update Test set isactive = $1 where id = $2',[true,data.test_id]); 
+		var startTestQuery = client.query('Update Test set isactive = $1 where id = $2 and sst_id=$3',[true,data.test_id,data.sst_id]); 
 		startTestQuery.on('end',function(){
 			return resolve('done');
 		});
