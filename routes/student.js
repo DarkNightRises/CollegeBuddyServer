@@ -374,7 +374,7 @@ app.post('/api/giveTest',function(req,res){
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
-				var checkIsTestActivePromise = checkIsTestActive(data,client);
+				var checkIsTestActivePromise = checkIsTestActive(data.test_id,client);
 				checkIsTestActivePromise.then(function(value){
 					if(value == true){
 						var uploadAnswerPromise = uploadAnswer(data,client);
@@ -399,11 +399,65 @@ app.post('/api/giveTest',function(req,res){
 		});
 	});
 });
+app.post('/api/getActiveTests',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			dataflow: 1,
+			subjects:req.body.subjects
+		};
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if( value == 'Valid'){
+				var subjects = data.subjects;
+				var count = 0,i=0;
+				console.log('Inside active tests');
+				var activeSubjectsList = [];
+				for (i=0;i<subjects.length;i++){
+					console.log('Inside active tests'+subjects[i].sst_id);
+					var checkIsTestForSubjectActivePromise = checkIsTestForSubjectActive(subjects[i].sst_id,client);
+					checkIsTestForSubjectActivePromise.then(function(value){
+						var subjectObject = {
+							id: subjects[count].sst_id,
+							data: value
+						};
+						activeSubjectsList.push(subjectObject);
+						count = count+1;
+						if(count == subjects.length){
+							return res.status(200).json({success: true, data: activeSubjectsList});
+						}
+					});
+				}
+			}
+			else if (value == 'Invalid'){
+				done();
+				return res.status(403).json({success:false, data:'Invalid User'});
+			}
+		});
 
-function checkIsTestActive(data,client){
+	});
+});
+
+function checkIsTestForSubjectActive(sst_id,client){
+	return new Promise(function(resolve,reject){
+		var isactive = {};
+		var checkIsTestForSubjectActiveQuery = client.query('Select * from test where sst_id = $1 and isactive = $2',[sst_id,true]);
+		checkIsTestForSubjectActiveQuery.on('row',function(row){
+			isactive.test_id = row.id;
+			isactive.isactive = row.isactive
+		});
+		checkIsTestForSubjectActiveQuery.on('end',function(){
+			return resolve(isactive);
+		});
+	});
+}
+
+function checkIsTestActive(test_id,client){
 	return new Promise(function(resolve,reject){
 		var isactive = false;
-		var checkIsTestActiveQuery = client.query('Select isactive from Test where id = $1',[data.test_id]);
+		var checkIsTestActiveQuery = client.query('Select isactive from Test where id = $1',[test_id]);
 		checkIsTestActiveQuery.on('row',function(row){
 			isactive = row.isactive;
 		});
