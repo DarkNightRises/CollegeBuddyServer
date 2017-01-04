@@ -131,7 +131,55 @@ function sendMessages(data_subject,reason_for_meesage){
 // 	});
 // }
 
-//return of json of uploadQuestion will be the input for send test api
+/*** 
+API to stop test 
+***/
+app.post('/api/stopTest',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.boyd.id,
+			dataflow: 0,
+			sst_id: req.body.sst_id,
+			test_id: req.body.test_id
+		}
+		var api_token = req.headers('auth_token');
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var stopTestPromise = stopTest(data,client);
+				stopTestPromise.then(function(value){
+					if(value == 'done'){
+						done();
+						return res.status(200).json({success:true, data: 'Test Successfully stopped'});
+					}
+				});
+			}
+			else if(value == 'Invalid'){
+				return res.status(403).json({success: false, data:'Invalid User'});
+			}
+		});
+
+	});
+});
+
+function stopTest(data,client){
+	return new Promise(function(resolve,reject){
+		var stopTestQuery = client.query('Update Test set isactive = $1 where id = $2',[false,data.test_id]);
+		stopTestQuery.on('end',function(){
+			return resolve('done');
+		});
+	});
+}
+function startTest(data,client){
+	return new Promise(function(resolve,reject){
+		var startTestQuery = client.query('Update Test set isactive = $1 where id = $2',[true,data.test_id]); 
+		startTestQuery.on('end',function(){
+			return resolve('done');
+		});
+	});
+}
+/***return of json of uploadQuestion will be the input for send test api***/
 app.post('/api/sendTest',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
@@ -146,10 +194,13 @@ app.post('/api/sendTest',function(req,res){
 		checkVaildUser.then(function(value){
 			console.log('Auth token '+value);
 			if(value == 'Valid'){
-				var sstinfoPromise = getinfoSST(data.sst_id,client);
-				sstinfoPromise.then(function(value){
-					var result = value[0];
-					console.log('Result is '+JSON.stringify(result));
+				var startTestPromise = startTest(data,client);
+				startTestPromise.then(function(value){
+					if(value == 'done'){
+						var sstinfoPromise = getinfoSST(data.sst_id,client);
+						sstinfoPromise.then(function(value){
+							var result = value[0];
+							console.log('Result is '+JSON.stringify(result));
 			//SBSC ----> Subject Branch Section College
 			var getSBSCpromise = getSubBranchSectCollege(result,client);
 			getSBSCpromise.then(function(value){
@@ -171,6 +222,11 @@ app.post('/api/sendTest',function(req,res){
 				});
 			});		
 		});
+					}
+				});
+
+
+
 			}
 			else if(value == 'Invalid'){
 				done();
@@ -581,6 +637,7 @@ API to stop attendance
 ***/
 app.post('/api/stopAttendance',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
 		var data = {
 			id: req.body.id,
 			sst_id: req.body.sst_id,

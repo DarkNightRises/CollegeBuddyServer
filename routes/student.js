@@ -24,6 +24,10 @@ module.exports = function(app)
 
 
 
+
+
+
+
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
@@ -352,6 +356,62 @@ app.post('/api/signupStudent',function(req,res){
 });
 
 });
+
+
+/***
+API to student to submit test
+***/
+app.post('/api/giveTest',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id:req.body.id,
+			dataflow: 1,
+			test_id: req.body.test_id,
+			choices: req.body.choices
+		};
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var uploadAnswerPromise = uploadAnswer(data,client);
+				uploadAnswerPromise.then(function(value){
+					if(value == 'done'){
+						done();
+						return res.status(200).json({success:true,data: 'Test Upload Successful'});
+					}
+				});
+			}
+			else if(value == 'Invalid'){
+				done();
+				res.status(403).json({success:false, data: 'Invalid User'});
+			}
+		});
+	});
+});
+
+
+function uploadAnswer(data,client){
+	return new Promise(function(resolve,reject){
+		console.log('Inside upload answer');
+		var choices_list = data.choices;
+		var test_id = data.test_id;
+		var i=0,count =0 ;
+		for(i=0;i<choices_list.length;i++){
+		console.log('Inside upload answer');
+		//var insertQuestionQuery = client.query('Insert into question(question_text) Select * from (Select $1::text) AS tmp where not exists (Select id from question where question_text = $1::text) LIMIT 1',[questions[i].question_text]);					
+			var insertAnswerQuery = client.query('Insert into answer(test_id,student_id,choice_id) Select * from (Select $1::int,$2::int,$3::int) AS tmp where not exists (Select id from answer where test_id = $1::int and student_id = $2::int and choice_id = $3::int) LIMIT 1',[test_id,data.id,choices_list[i].choice_id]);
+			insertAnswerQuery.on('end',function(value){
+				count = count+1;
+				if(count == choices_list.length){
+				return resolve('done');
+			}
+			});
+		}
+
+	});
+}
+
 
 
 
