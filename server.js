@@ -35,13 +35,13 @@ function sendMessages(data_subject,reason_for_meesage){
 		console.log("Data Subject"+data_subject);
 	}
 	else if(reason_for_meesage == 'sendTest'){
-	var payloadString = {
+		var payloadString = {
 			"reason": ""+reason_for_meesage,
 			"data": jsonData
 		};
 		dataPayload = {payload:(payloadString)};
 		console.log("Data Subject"+data_subject);
-	
+
 	}
 	else{
 		var payloadString = {
@@ -144,11 +144,11 @@ app.post('/api/sendTest',function(req,res){
 		var api_token = req.headers['auth-token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
-		console.log('Auth token '+value);
+			console.log('Auth token '+value);
 			if(value == 'Valid'){
-		var sstinfoPromise = getinfoSST(data.sst_id,client);
+				var sstinfoPromise = getinfoSST(data.sst_id,client);
 				sstinfoPromise.then(function(value){
-						var result = value[0];
+					var result = value[0];
 					console.log('Result is '+JSON.stringify(result));
 			//SBSC ----> Subject Branch Section College
 			var getSBSCpromise = getSubBranchSectCollege(result,client);
@@ -157,10 +157,10 @@ app.post('/api/sendTest',function(req,res){
 				finaldata.subject_id = result.subject_id;
 				finaldata.sst_id = data.sst_id;
 				finaldata.test_id = data.test_id;
-			var sendPromise = sendMessages(finaldata,'sendTest');
+				var sendPromise = sendMessages(finaldata,'sendTest');
 				sendPromise.then(function(value){
 					console.log(value);
-										if(value == 'Sent'){
+					if(value == 'Sent'){
 						done();
 						return res.end('done');
 					}
@@ -169,15 +169,15 @@ app.post('/api/sendTest',function(req,res){
 					done();
 					return res.status(403).json({success:false, data: err});
 				});
-					});		
-			});
+			});		
+		});
 			}
 			else if(value == 'Invalid'){
- 				done();
+				done();
 				res.status(403).json({success:false, data: 'Invalid User'});
 			}
-	});		
-	});
+		});		
+});
 });
 
 /***
@@ -577,6 +577,42 @@ function getReviewInfo(data,client){
 	});
 }
 /***
+API to stop attendance 
+***/
+app.post('/api/stopAttendance',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		var data = {
+			id: req.body.id,
+			sst_id: req.body.sst_id,
+			dataflow: 0
+		};
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var stopAttendancePromise = stopAttendance(data,client);
+				stopAttendancePromise.then(function(value){
+					if(value == 'done'){
+
+						done();
+						return res.status(200).json({success: true, data: 'Attendance stopped'});
+					}
+					else{
+
+						done();
+						return res.status(201).json({success: true, data: 'Error'});
+					}
+				});
+			}
+			else if (value == 'Invalid'){
+				done();
+				return res.status(403).json({success:false, data: 'Invalid User'});
+			}
+		});
+	});
+});
+
+/***
 Api for teacher to send a class attendance request
 ***/
 app.post('/api/takeAttendance',function(req,res){
@@ -594,11 +630,16 @@ app.post('/api/takeAttendance',function(req,res){
 			console.log(value);
 			if(value == 'Valid'){
 				data.datetime = Date.now();
-				var sstinfoPromise = getinfoSST(data.sst_id,client);
-				sstinfoPromise.then(function(value){
-					var result = value[0];
-					console.log()
+				var insertinAttendancePromise  = insertinAttendance(data,client);
+				insertinAttendancePromise.then(function(value){
+					console.log('Inside take attendance');
+					if(value == 'done'){
+						var sstinfoPromise = getinfoSST(data.sst_id,client);
+						sstinfoPromise.then(function(value){
+							var result = value[0];
+							console.log()
 			//SBSC ----> Subject Branch Section College
+			
 			var getSBSCpromise = getSubBranchSectCollege(result,client);
 			getSBSCpromise.then(function(value){
 				var finaldata = value;
@@ -620,19 +661,44 @@ app.post('/api/takeAttendance',function(req,res){
 				});
 			});
 		});
-			}
-			else if(value == 'Invalid'){
-				done();
-				res.status(403).json({success:false, data: 'Invalid User'})
-			}
+					}
+				});
+
+}
+else if(value == 'Invalid'){
+	done();
+	res.status(403).json({success:false, data: 'Invalid User'})
+}
+});
+
+});
+});
+
+
+function insertinAttendance(data,client){
+	return new Promise(function(resolve,reject){
+		console.log('Inside take attendance');
+		//INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1'
+		var insertinAttendanceQuery = client.query('Insert into ActiveAttendance(sst_id) Select * from (Select $1::int) AS tmp where not exists (Select id from ActiveAttendance where sst_id = $1::int) LIMIT 1',[data.sst_id]);
+		insertinAttendanceQuery.on('end',function(){
+			console.log('Inside take attendance');
+			var updateAttendanceQuery = client.query('Update ActiveAttendance SET isactive = $1 where sst_id = $2',[true,data.sst_id]);
+			updateAttendanceQuery.on('end',function(){
+				console.log('Inside take attendance');
+				return resolve('done');	
+			})
+
 		});
-
-});
-});
-
-
-
-
+	});
+}
+function stopAttendance(data,client){
+	return new Promise(function(resolve,reject){
+		var stopAttendancequery = client.query('update ActiveAttendance set isactive = false where sst_id = $1',[data.sst_id]);
+		stopAttendancequery.on('end',function(){
+			return resolve('done');
+		});
+	});
+}
 //Api for sending notification to class 
 app.post('/api/sendClass',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
