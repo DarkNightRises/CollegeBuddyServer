@@ -386,7 +386,7 @@ app.post('/api/giveTest',function(req,res){
 						});
 					}
 					else{
-								return res.status(200).json({success:true,data: 'Test Already Over'});
+						return res.status(200).json({success:true,data: 'Test Already Over'});
 						
 					}
 				})
@@ -399,6 +399,93 @@ app.post('/api/giveTest',function(req,res){
 		});
 	});
 });
+
+app.post('/api/getTest',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			test_id: req.body.test_id,
+			dataflow: 1
+		};
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var checkIsTestActivePromise = checkIsTestActive(data.test_id,client);
+				checkIsTestActivePromise.then(function(value){
+					if(value == true){
+						var getTestpromise = getTest(data,client);
+						getTestpromise.then(function(value){
+							return res.status(200).json({success:true, data: value});
+						});
+					}
+					else{
+						return res.status(200).json({success:true,data: 'Test Already Over'});
+
+					}	
+				});}
+				else if (value == 'Invalid'){
+					done();
+					return res.status(403).json({success: false, data: 'Invalid User'});
+				}
+			});
+			});
+	});
+	function getTest(data,client){
+		return new Promise(function(resolve,reject){
+			console.log('Inside get test');
+			var finalQuestionList = [];
+			var finalQuestionNamesList = [];
+			var finalAnswerList = [];
+			var getQuestionsList = client.query('Select * from test_question where test_id = $1 ',[data.test_id]);
+			getQuestionsList.on('row',function(row){
+				finalQuestionList.push(row);
+			});
+			getQuestionsList.on('end',function(){
+				var count = 0,i=0;
+				console.log('Inside get test'+JSON.stringify(finalQuestionList));
+				for (i = 0;i<finalQuestionList.length;i++){
+					var getQuestionNames = client.query('Select * from Question where id = $1',[finalQuestionList[i].question_id]);
+					getQuestionNames.on('row',function(row){
+						finalQuestionNamesList.push(row);
+					});
+					getQuestionNames.on('end',function(){
+						count = count+1;
+						if(count == finalQuestionList.length){
+						console.log('Inside get test FQL'+JSON.stringify(finalQuestionNamesList));
+							count=0;
+							i=0;
+							for(i=0;i<finalQuestionList.length;i++){
+								console.log(finalQuestionList[i].question_id);
+								var getAnswerQuery = client.query('Select * from choices where question_id = $1',[finalQuestionList[i].question_id]);
+								getAnswerQuery.on('row',function(row){
+					var test_data = {
+						question_text: finalQuestionList[Math.floor(count/4)].question_text,
+						answer:row
+					};
+					console.log(JSON.stringify(test_data)+'	'+JSON.stringify(row));
+								
+					finalAnswerList.push(test_data);
+				});
+								getAnswerQuery.on('end',function(){
+									count = count+1;
+									console.log('Counst is '+count);
+									if(count == (finalQuestionList.length))
+									{
+console.log('Inside get test'+finalAnswerList);
+
+										return resolve(finalAnswerList);
+									}
+								});
+							}
+
+						}
+					});
+				}
+			});
+});
+}
 app.post('/api/getActiveTests',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
@@ -578,11 +665,11 @@ function checkAuthToken(auth_token,client,data){
 }
 
 
-	function checkForError(err){
-		if(err) {
-			done();
-			console.log(err);
-			return res.status(500).json({success: false, data: err});
-		}
+function checkForError(err){
+	if(err) {
+		done();
+		console.log(err);
+		return res.status(500).json({success: false, data: err});
 	}
+}
 }
