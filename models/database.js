@@ -17,7 +17,7 @@ var query = client.query('CREATE TABLE IF NOT EXISTS items(ID SERIAL PRIMARY KEY
  query = client.query('create table if not exists Attendance(Id serial primary key,student_id int,subject_id int,datetime bigint default null,present BOOLEAN default FALSE,FOREIGN KEY (student_id) REFERENCES Student(ID) on delete cascade on update cascade,FOREIGN KEY (subject_id) REFERENCES Subject(ID) on delete cascade on update cascade)');
  query = client.query('create table if not exists Question(ID serial primary key,question_text text NOT NULL)');
  query = client.query('create table if not exists Choices(id serial primary key,choice_text text NOT NULL, question_id int not null,FOREIGN KEY (question_id) REFERENCES Question(ID) on delete cascade on update cascade)');
- query = client.query('create table if not exists Test(ID serial primary key,nameofTest text NOT NULL, sst_id int,datetime bigint default null,FOREIGN KEY (sst_id) REFERENCES Section_Subject_Teacher(ID) on delete cascade on update cascade)');
+ query = client.query('create table if not exists Test(ID serial primary key,nameofTest text NOT NULL, sst_id int,datetime bigint default null,isactive boolean default false,FOREIGN KEY (sst_id) REFERENCES Section_Subject_Teacher(ID) on delete cascade on update cascade)');
 query = client.query('create table if not exists Test_Question(ID serial primary key,test_id int, question_id int, FOREIGN KEY (test_id) REFERENCES Test(ID) on delete cascade on update cascade,FOREIGN KEY (question_id) REFERENCES Question(ID) on delete cascade on update cascade)');
 //Question id added in table to map question to answer
 console.log("done");
@@ -29,5 +29,6 @@ query = client.query('create table if not exists Answer(ID serial primary key,te
 //Recently added tables
  query = client.query('create table if not exists CorrectChoice(ID serial PRIMARY KEY,question_id int,choice_id int,FOREIGN KEY (question_id) REFERENCES Question(ID) on delete cascade on update cascade,FOREIGN KEY (choice_id) REFERENCES Choices(ID) on delete cascade on update cascade)')
 console.log("done");
+query = client.query('create table if not exists ActiveAttendance(ID serial PRIMARY KEY, sst_id int, isactive boolean default false, FOREIGN KEY (sst_id) ) REFERENCES Section_Subject_Teacher(ID))');
 query.on('end', () => { client.end(); });
 
