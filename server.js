@@ -77,59 +77,114 @@ function sendMessages(data_subject,reason_for_meesage){
 }
 
 
-// /***
-// API to student to submit test
-// ***/
-// app.post('/api/giveTest',function(req,res){
-// 	pg.connect(connectionString,function(err,client,done){
-// 		checkForError(err);
-// 		var data = {
-// 			id:req.body.id,
-// 			dataflow: 1,
-// 			test_id: req.body.test_id,
-// 			choices: req.body.choices
-// 		};
-// 		var api_token = req.headers['auth-token'];
-// 		var checkVaildUser = checkAuthToken(api_token,client,data);
-// 		checkVaildUser.then(function(value){
-// 			if(value == 'Valid'){
-// 				var uploadAnswerPromise = uploadAnswer(data,client);
-// 				uploadAnswerPromise.then(function(value){
-// 					if(value == 'done'){
-// 						done();
-// 						return res.status(200).json({success:true,data: 'Test Upload Successful'});
-// 					}
-// 				});
-// 			}
-// 			else if(value == 'Invalid'){
-// 				done();
-// 				res.status(403).json({success:false, data: 'Invalid User'});
-// 			}
-// 		});
-// 	});
-// });
+/***
+API to get unsolved queries
+***/
+app.post('/api/getQueries',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id: req.body.id,
+			dataflow: 0
+
+		};	
+
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var getQueriesPromise = getQueries(data,client);
+				getQueriesPromise.then(function(value){
+					done();
+					return res.status(200).json({success: true, data: value});
+				});
+			}
+			else if (value == 'Invalid'){
+				done();
+				return res.status(403).json({success:false, data: 'Invalid User'});
+			}
+		})
+	});
+});
+
+function getQueries(data,client){
+	return new Promise(function(resolve,reject){
+		var queriesList = [];
+		var getQueriesQuery = client.query('Select * from Query where teacher_id = $1 and issolved = $2',[data.id,false]);
+		getQueriesQuery.on('row',function(row){
+			console.log('row'+JSON.stringify(row));
+			var test_data = {
+				query_id: row.id,
+				query_text: row.query_text,
+				student_id: row.student_id
+			};
+				console.log('row'+JSON.stringify(test_data));
+		queriesList.push(test_data);
+		});
+		getQueriesQuery.on('end',function(){
+			return resolve(queriesList);
+		})
+	});
+}
+
+/***
+API to give response for queries 
+***/
+app.post('/api/sendQueryResponse',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id:req.body.id,
+			student_id: req.body.student_id,
+			response: req.body.response,
+			query_id: req.body.query_id,
+			dataflow: 0
+		};
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var insertQueryResponsePromise = insertQueryResponse(data,client);
+				insertQueryResponsePromise.then(function(value){
+					if(value == 'done'){
+						done();
+						return res.status(200).json({success: true, data: 'Response Successfully Sent'});
+
+/***
 
 
-// function uploadAnswer(data,client){
-// 	return new Promise(function(resolve,reject){
-// 		console.log('Inside upload answer');
-// 		var choices_list = data.choices;
-// 		var test_id = data.test_id;
-// 		var i=0,count =0 ;
-// 		for(i=0;i<choices_list.length;i++){
-// 		console.log('Inside upload answer');
-// 		//var insertQuestionQuery = client.query('Insert into question(question_text) Select * from (Select $1::text) AS tmp where not exists (Select id from question where question_text = $1::text) LIMIT 1',[questions[i].question_text]);					
-// 			var insertAnswerQuery = client.query('Insert into answer(test_id,student_id,choice_id) Select * from (Select $1::int,$2::int,$3::int) AS tmp where not exists (Select id from answer where test_id = $1::int and student_id = $2::int and choice_id = $3::int) LIMIT 1',[test_id,data.id,choices_list[i].choice_id]);
-// 			insertAnswerQuery.on('end',function(value){
-// 				count = count+1;
-// 				if(count == choices_list.length){
-// 				return resolve('done');
-// 			}
-// 			});
-// 		}
+Todo
 
-// 	}); 
-// }
+
+Send GCM here with use of id of student and get his student id
+
+***/
+}
+});
+			}
+			else if(value == 'Invalid'){
+				done();
+				return res.status(403).json({success: false, data: 'Invalid User'});
+			}
+		});
+	});
+})
+
+
+function insertQueryResponse(data,client){
+	return new Promise(function(resolve,reject){
+		//var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
+
+		var queryResponseQuery = client.query('Insert into QueryResponse(query_id,response) Select * from (Select $1::int,$2::text) AS tmp where not exists (Select id from QueryResponse where query_id = $1 and response =$2) LIMIT 1',[data.query_id,data.response]);
+		queryResponseQuery.on('end',function(value){
+			var insertIsSolvedQuery = client.query('Update Query Set issolved = $1 where id = $2',[true,data.query_id]);
+			insertIsSolvedQuery.on('end',function(){
+				return resolve('done');	
+			});
+			
+		});
+	});
+}
 
 /*** 
 API to stop test 
@@ -159,7 +214,6 @@ app.post('/api/stopTest',function(req,res){
 				return res.status(403).json({success: false, data:'Invalid User'});
 			}
 		});
-
 	});
 });
 
@@ -252,7 +306,7 @@ app.post('/api/uploadQuestions',function(req,res){
 			dataflow: 0
 		};
 		console.log('Inside insandet Test Id ');
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		console.log(api_token+'	'+data.id+'	'+data.dataflow);
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
@@ -400,7 +454,7 @@ app.post('/api/getAttendance',function(req,res){
 			dataflow: 0
 		}
 
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -559,7 +613,7 @@ app.post('/api/getReview',function(req,res){
 			id: req.body.id,
 			dataflow:0,			
 		};
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -691,7 +745,7 @@ app.post('/api/takeAttendance',function(req,res){
 			id: req.body.id,
 			dataflow: 0
 		};
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -776,7 +830,7 @@ app.post('/api/sendClass',function(req,res){
 			id: req.body.id,
 			dataflow: 0
 		};
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -862,7 +916,7 @@ app.post('/api/uploadSubject',function(req,res){
 			dataflow: 0,
 			id: req.body.id
 		}
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 
 		checkVaildUser.then(function(value){
@@ -1125,7 +1179,7 @@ app.post('/api/gcmidUpdate',function(req,res){
 		}
 
 		
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -1134,7 +1188,7 @@ app.post('/api/gcmidUpdate',function(req,res){
 				insertionPromise.then(function(value){
 					console.log('final value of promise is '+value);
 					if(value == 'done'){
-						console.log('Header of request are '+req.headers['auth-token'])
+						console.log('Header of request are '+req.headers['auth_token'])
 						done();
 						return res.status(200).json({success: true,data: 'Update successfull'})
 					}

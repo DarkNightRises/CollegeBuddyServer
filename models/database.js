@@ -29,6 +29,6 @@ query = client.query('create table if not exists Answer(ID serial primary key,te
 //Recently added tables
  query = client.query('create table if not exists CorrectChoice(ID serial PRIMARY KEY,question_id int,choice_id int,FOREIGN KEY (question_id) REFERENCES Question(ID) on delete cascade on update cascade,FOREIGN KEY (choice_id) REFERENCES Choices(ID) on delete cascade on update cascade)')
 console.log("done");
-query = client.query('create table if not exists ActiveAttendance(ID serial PRIMARY KEY, sst_id int, isactive boolean default false, FOREIGN KEY (sst_id) ) REFERENCES Section_Subject_Teacher(ID))');
+query = client.query('create table if not exists ActiveAttendance(ID serial PRIMARY KEY, sst_id int, isactive boolean default false, FOREIGN KEY (sst_id) REFERENCES Section_Subject_Teacher(ID))');
 query.on('end', () => { client.end(); });
 

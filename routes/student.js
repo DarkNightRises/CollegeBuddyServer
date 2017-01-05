@@ -25,9 +25,82 @@ module.exports = function(app)
 
 
 
+/***
+api to send query by student 
+***/
+app.post('/api/sendQuery',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			id : req.body.id,
+			sst_id : req.body.sst_id,
+			dataflow : 1,
+			query_text : req.body.query_text
+		};
+		var api_token = req.headers['auth_token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+			if(value == 'Valid'){
+				var getinfoSSTPromise = getinfoSST(data.sst_id,client);
+				getinfoSSTPromise.then(function(value){
+					var sst_data = value[0];
+					console.log(sst_data);
+					var insertQueryinQueryPromise = insertQueryinQuery(data,sst_data,client);
+					insertQueryinQueryPromise.then(function(value){
+							console.log(value);
+									done();
+							return res.status(200).json({success: true, data: 'Query Send.'});
 
 
+/***
 
+value received through function value contains gcm_id of teacher pn which the push notification is to be sent.
+
+Todo
+
+Send GCM to teacher_id still left
+
+***/
+
+});
+				});	
+			}
+			else if(value == 'Invalid'){
+				done();
+				return res.status(403).json({success:false, data : 'Invalid User'});
+			}
+		});
+	})
+});
+//var subquery = ('INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1');
+
+function insertQueryinQuery(data,sst_data,client){
+	return new Promise(function(resolve,reject){
+		var insertQuery = client.query('Insert into Query(student_id,teacher_id,query_text) Select * from (Select $1::int,$2::int,$3::text) AS tmp where not exists (Select id from Query where student_id = $1 and teacher_id = $2 and query_text =$3) LIMIT 1',[data.id,sst_data.teacher_id,data.query_text]);
+		insertQuery.on('end',function(){
+			// var gcm_id=0;
+			// var data = {};
+			// var getTeacherInfo = client.query('Select gcm_id from teacher where id = $1',[sst_data.teacher_id]);
+			// getTeacherInfo.on('row',function(row){
+			// 	gcm_id = row.gcm_id;
+
+			// });
+			// getTeacherInfo.on('end',function(){
+			// 	var getQueryId = client.query('Select id from Query where student_id = $1 and teacher_id = $2 and query_text =$3',[data.id,sst_data.teacher_id,data.query_text]);
+			// 		getQueryId.on('row',function(row){
+			// 			data = row;
+			// 		});
+			// 		getQueryId.on('end',function(){
+			// 		data.gcm_id = gcm_id;
+			// 		return resolve(data);	
+			// 		});
+					
+			// });
+			return resolve('done');
+
+		});
+	});
+}
 //API for Login Student
 app.post('/api/loginStudent',function(req,res){
 	pg.connect(connectionString, function(err,client,done){	
@@ -116,7 +189,7 @@ app.post('/api/sendReview',function(req,res){
 			review_text: req.body.review_text
 		};
 
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
@@ -210,7 +283,7 @@ app.post('/api/uploadAttendance',function(req,res){
 			present: req.body.present
 		};
 
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
@@ -365,12 +438,12 @@ app.post('/api/giveTest',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
 		var data = {
-			id:req.body.id,
+			id: req.body.id,
 			dataflow: 1,
 			test_id: req.body.test_id,
 			choices: req.body.choices
 		};
-		var api_token = req.headers['auth-token'];
+		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			if(value == 'Valid'){
@@ -430,60 +503,60 @@ app.post('/api/getTest',function(req,res){
 					return res.status(403).json({success: false, data: 'Invalid User'});
 				}
 			});
-			});
 	});
-	function getTest(data,client){
-		return new Promise(function(resolve,reject){
-			console.log('Inside get test');
-			var finalQuestionList = [];
-			var finalQuestionNamesList = [];
-			var finalAnswerList = [];
-			var getQuestionsList = client.query('Select * from test_question where test_id = $1 ',[data.test_id]);
-			getQuestionsList.on('row',function(row){
-				finalQuestionList.push(row);
-			});
-			getQuestionsList.on('end',function(){
-				var count = 0,i=0;
-				console.log('Inside get test'+JSON.stringify(finalQuestionList));
-				for (i = 0;i<finalQuestionList.length;i++){
-					var getQuestionNames = client.query('Select * from Question where id = $1',[finalQuestionList[i].question_id]);
-					getQuestionNames.on('row',function(row){
-						finalQuestionNamesList.push(row);
-					});
-					getQuestionNames.on('end',function(){
-						count = count+1;
-						if(count == finalQuestionList.length){
-						console.log('Inside get test FQL'+JSON.stringify(finalQuestionNamesList));
-							count=0;
-							i=0;
-							for(i=0;i<finalQuestionList.length;i++){
-								console.log(finalQuestionList[i].question_id);
-								var getAnswerQuery = client.query('Select * from choices where question_id = $1',[finalQuestionList[i].question_id]);
-								getAnswerQuery.on('row',function(row){
-					var test_data = {
-						question_text: finalQuestionList[Math.floor(count/4)].question_text,
-						answer:row
-					};
-					console.log(JSON.stringify(test_data)+'	'+JSON.stringify(row));
-								
-					finalAnswerList.push(test_data);
+});
+function getTest(data,client){
+	return new Promise(function(resolve,reject){
+		console.log('Inside get test');
+		var finalQuestionList = [];
+		var finalQuestionNamesList = [];
+		var finalAnswerList = [];
+		var getQuestionsList = client.query('Select * from test_question where test_id = $1 ',[data.test_id]);
+		getQuestionsList.on('row',function(row){
+			finalQuestionList.push(row);
+		});
+		getQuestionsList.on('end',function(){
+			var count = 0,i=0;
+			console.log('Inside get test'+JSON.stringify(finalQuestionList));
+			for (i = 0;i<finalQuestionList.length;i++){
+				var getQuestionNames = client.query('Select * from Question where id = $1',[finalQuestionList[i].question_id]);
+				getQuestionNames.on('row',function(row){
+					finalQuestionNamesList.push(row);
 				});
-								getAnswerQuery.on('end',function(){
-									count = count+1;
-									console.log('Counst is '+count);
-									if(count == (finalQuestionList.length))
-									{
-console.log('Inside get test'+finalAnswerList);
+				getQuestionNames.on('end',function(){
+					count = count+1;
+					if(count == finalQuestionList.length){
+						console.log('Inside get test FQL'+JSON.stringify(finalQuestionNamesList));
+						count=0;
+						i=0;
+						for(i=0;i<finalQuestionList.length;i++){
+							console.log(finalQuestionList[i].question_id);
+							var getAnswerQuery = client.query('Select * from choices where question_id = $1',[finalQuestionList[i].question_id]);
+							getAnswerQuery.on('row',function(row){
+								var test_data = {
+									question_text: finalQuestionList[Math.floor(count/4)].question_text,
+									answer:row
+								};
+								console.log(JSON.stringify(test_data)+'	'+JSON.stringify(row));
+								
+								finalAnswerList.push(test_data);
+							});
+							getAnswerQuery.on('end',function(){
+								count = count+1;
+								console.log('Counst is '+count);
+								if(count == (finalQuestionList.length))
+								{
+									console.log('Inside get test'+finalAnswerList);
 
-										return resolve(finalAnswerList);
-									}
-								});
-							}
-
+									return resolve(finalAnswerList);
+								}
+							});
 						}
-					});
-				}
-			});
+
+					}
+				});
+}
+});
 });
 }
 app.post('/api/getActiveTests',function(req,res){
