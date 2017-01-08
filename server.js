@@ -103,7 +103,7 @@ app.post('/api/getQueries',function(req,res){
 				done();
 				return res.status(403).json({success:false, data: 'Invalid User'});
 			}
-		})
+		});
 	});
 });
 
@@ -118,8 +118,8 @@ function getQueries(data,client){
 				query_text: row.query_text,
 				student_id: row.student_id
 			};
-				console.log('row'+JSON.stringify(test_data));
-		queriesList.push(test_data);
+			console.log('row'+JSON.stringify(test_data));
+			queriesList.push(test_data);
 		});
 		getQueriesQuery.on('end',function(){
 			return resolve(queriesList);
@@ -156,7 +156,7 @@ app.post('/api/sendQueryResponse',function(req,res){
 Todo
 
 
-Send GCM here with use of id of student and get his student id
+Send GCM here with use of id of student and get his student id....
 
 ***/
 }
@@ -168,7 +168,7 @@ Send GCM here with use of id of student and get his student id
 			}
 		});
 	});
-})
+});
 
 
 function insertQueryResponse(data,client){
@@ -452,7 +452,7 @@ app.post('/api/getAttendance',function(req,res){
 			sst_id: req.body.sst_id,
 			id: req.body.id,
 			dataflow: 0
-		}
+		};
 
 		var api_token = req.headers['auth_token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
@@ -626,8 +626,7 @@ app.post('/api/getReview',function(req,res){
 						console.log(JSON.stringify(value));
 						return res.status(200).json({success:true, data:value});
 					})
-					// console.log(JSON.stringify(value));
-					// return res.end('done');
+			
 				});
 			}
 			else if(value == 'Invalid'){
@@ -696,9 +695,14 @@ function getReviewInfo(data,client){
 		});
 	});
 }
+
+
+
 /***
 API to stop attendance 
 ***/
+
+
 app.post('/api/stopAttendance',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
@@ -732,6 +736,7 @@ app.post('/api/stopAttendance',function(req,res){
 		});
 	});
 });
+
 
 /***
 Api for teacher to send a class attendance request
