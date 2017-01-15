@@ -5,7 +5,7 @@ Module for Student API
 var express = require('express');
 var app = express();
 var fs = require("fs");
-var pg = require("pg").native;
+var pg = require("pg");
 var bodyParser = require("body-parser");
 var router = express.Router();
 var Promise = require('promise')
@@ -16,6 +16,7 @@ var config = {
   host: 'localhost', // Server hosting the postgres database
   port: 5432, //env var: PGPORT
   max: 10, // max number of clients in the pool
+  password: 'glassgow161',
   idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
 };
 //For parsing post json data in API
