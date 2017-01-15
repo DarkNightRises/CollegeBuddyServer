@@ -5,7 +5,7 @@ Module for Student API
 var express = require('express');
 var app = express();
 var fs = require("fs");
-var pg = require("pg");
+var pg = require("pg").native;
 var bodyParser = require("body-parser");
 var router = express.Router();
 var Promise = require('promise')
