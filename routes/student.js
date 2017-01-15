@@ -9,7 +9,7 @@ var pg = require("pg");
 var bodyParser = require("body-parser");
 var router = express.Router();
 var Promise = require('promise')
-var connectionString = process.env.DATABASE_URL || '127.0.0.1'
+var connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy';
 var config = {
   database: 'collegebuddy', //env var: PGDATABASE
   host: connectionString, // Server hosting the postgres database
@@ -134,7 +134,7 @@ app.post('/api/loginStudent',function(req,res){
 
 app.get('/api/getCollegeList',function(req,res){
 	console.log('API changed again'+connectionString);
-	pool.connect(function(err,client,done){
+	pg.connect(connectionString,function(err,client,done){
 		if(err){
 			done();
 			console.log('Error is \n'+err)
