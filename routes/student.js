@@ -12,7 +12,7 @@ var Promise = require('promise')
 var connectionString = process.env.DATABASE_URL || '127.0.0.1'
 var config = {
   database: 'collegebuddy', //env var: PGDATABASE
-  host: process.env.DATABASE_URL || 'localhost', // Server hosting the postgres database
+  host: connectionString, // Server hosting the postgres database
   port: 5432, //env var: PGPORT
   max: 10, // max number of clients in the pool
   password: 'glassgow161',
@@ -134,7 +134,7 @@ app.post('/api/loginStudent',function(req,res){
 });
 
 app.get('/api/getCollegeList',function(req,res){
-	console.log('API changed again'+process.env.DATABASE_URL);
+	console.log('API changed again'+connectionString);
 	pool.connect(function(err,client,done){
 		if(err){
 			done();
