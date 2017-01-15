@@ -9,11 +9,11 @@ var pg = require("pg");
 var bodyParser = require("body-parser");
 var router = express.Router();
 var Promise = require('promise')
-var connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/collegebuddy'
+var connectionString = process.env.DATABASE_URL || '127.0.0.1'
 var config = {
   user: 'kartikey', //env var: PGUSER
   database: 'collegebuddy', //env var: PGDATABASE
-  host: process.env.DATABASE_URL, // Server hosting the postgres database
+  host: 'localhost', // Server hosting the postgres database
   port: 5432, //env var: PGPORT
   max: 10, // max number of clients in the pool
   idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
