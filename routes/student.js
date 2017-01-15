@@ -15,7 +15,6 @@ var config = {
   host: connectionString, // Server hosting the postgres database
   port: 5432, //env var: PGPORT
   max: 10, // max number of clients in the pool
-  password: 'glassgow161',
   idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
 };
 //For parsing post json data in API
