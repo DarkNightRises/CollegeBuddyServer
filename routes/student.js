@@ -139,7 +139,7 @@ app.get('/api/getCollegeList',function(req,res){
 	pool.connect(function(err,client,done){
 		if(err){
 			done();
-			console.log(err)
+			console.log('Error is \n'+err)
 			return res.status(500).json({success: false, data: 'Connection to database failed'});
 		}	
 		var results = [];
