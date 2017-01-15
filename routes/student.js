@@ -147,9 +147,11 @@ app.get('/api/getCollegeList',function(req,res){
 			results = value;
 			if(results.length == 0)
 			{
+				done();
 				return res.status(200).json({success:true, data:'No college yet'});
 			}
 			else{
+				done();
 				return res.status(200).json({success:true, data:results});
 
 			}
