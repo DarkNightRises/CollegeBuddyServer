@@ -134,7 +134,7 @@ app.post('/api/loginStudent',function(req,res){
 });
 
 app.get('/api/getCollegeList',function(req,res){
-	console.log('API changed again');
+	console.log('API changed again'+process.env.DATABASE_URL);
 	pool.connect(function(err,client,done){
 		if(err){
 			done();
