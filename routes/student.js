@@ -11,9 +11,8 @@ var router = express.Router();
 var Promise = require('promise')
 var connectionString = process.env.DATABASE_URL || '127.0.0.1'
 var config = {
-  user: 'kartikey', //env var: PGUSER
   database: 'collegebuddy', //env var: PGDATABASE
-  host: process.env.DATABASE_URL ||'localhost', // Server hosting the postgres database
+  host: process.env.DATABASE_URL || 'localhost', // Server hosting the postgres database
   port: 5432, //env var: PGPORT
   max: 10, // max number of clients in the pool
   password: 'glassgow161',
