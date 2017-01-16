@@ -906,7 +906,73 @@ function getSubBranchSectCollege(test_data,client)
 }
 
 
+//API to get section id 
+app.post('/api/getSectionId',function(req,res){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+			sections : req.body.sections,
+			id : req.body.id,
+			dataflow: 0
+		};
+			console.log('Came inside');
+	var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+				console.log('Came inside'+value);
 
+			if(value == 'Valid'){
+				console.log('Came inside');
+		var insSecAndIdPromise = insertSectionAndGetId(data,client);
+				insSecAndIdPromise.then(function(value){
+					done();
+					return res.status(200).json({success: true, data: value});
+				});
+			}
+			else if(value == 'Invalid'){
+				done();
+				return res.status(403).json({success: false, data: 'Invalid User'});
+			}
+		});
+	});
+});
+	//INSERT INTO Subject(name, code) SELECT * FROM (SELECT '+name+', '+code+') AS tmp WHERE NOT EXISTS (SELECT name FROM Subject WHERE code = '+code+') LIMIT 1'
+
+function insertSectionAndGetId(data,client){
+	return new Promise(function(resolve,reject){
+		console.log('Came inside new');		
+		var sectionArray = data.sections;
+		var idArray = [];
+		console.log('Came inside new'+sectionArray);
+				var count = 0;
+
+			for(var i=0;i< sectionArray.length;i++){
+				var section = sectionArray[i];
+				console.log('Came inside');
+				var insertOrUpdateSectionQuery = client.query('Insert into section(branch_id,section,year) Select * from (Select $1::int,$2::int,$3::int) AS tmp WHERE NOT EXISTS (Select id from section where branch_id = $1 and section = $2 and year = $3) LIMIT 1',[section.branch_id,section.section,section.year]);
+				insertOrUpdateSectionQuery.on('end',function(){
+					count = count+1;
+					if(count == sectionArray.length){
+						count = 0;
+						for(var i=0;i<sectionArray.length;i++){
+							var section = sectionArray[i];
+						var getSectionIdQuery = client.query('Select id from section where branch_id = $1 and section = $2 and year = $3',[section.branch_id,section.section,section.year]);	
+							getSectionIdQuery.on('row',function(row){
+								idArray.push(row);
+							});
+							getSectionIdQuery.on('end',function(){
+								count = count +1;
+								if(count == sectionArray.length){
+									return resolve(idArray);
+								}
+							});
+						}
+						
+					}
+				});
+			}
+	});
+}
 //API To upload subjects by teacher
 app.post('/api/uploadSubject',function(req,res){
 	var faculty_id = req.body.id;

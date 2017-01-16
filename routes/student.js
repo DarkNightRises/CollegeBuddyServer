@@ -170,6 +170,7 @@ app.get('/api/getBranch',function(req,res){
 		var executePromise = executeQuery(query,client);
 		executePromise.then(function(value){
 			results = value;
+			done();
 			if(results.length == 0)
 			{
 				return res.status(200).json({success:true, data:'No branches yet'});
