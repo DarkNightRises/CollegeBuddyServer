@@ -905,7 +905,7 @@ function getSubBranchSectCollege(test_data,client)
 	});
 }
 //API to get subject id from subject name and code
-app.post('/api/getSubjectId',function(req,res)){
+app.post('/api/getSubjectId',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
 		var data = {
@@ -930,7 +930,7 @@ app.post('/api/getSubjectId',function(req,res)){
 				}
 		});
 	});
-}
+});
 
 //API to get section id 
 app.post('/api/getSectionId',function(req,res){
