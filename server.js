@@ -904,7 +904,33 @@ function getSubBranchSectCollege(test_data,client)
 		});
 	});
 }
-
+//API to get subject id from subject name and code
+app.post('/api/getSubjectId',function(req,res)){
+	pg.connect(connectionString,function(err,client,done){
+		checkForError(err);
+		var data = {
+				id: req.body.id,
+				subject_code: req.body.subject_code,
+				dataflow: 0
+		};
+		var api_token = req.headers['auth-token'];
+		var checkVaildUser = checkAuthToken(api_token,client,data);
+		checkVaildUser.then(function(value){
+				if(value == 'Valid'){
+					var results = [];
+						var getSubjectIdPromise = getSubjectId(data.subject_code,client,results);
+						getSubjectIdPromise.then(function(value){
+							done();
+							return res.status(200).json({success: true, data: results});
+						})
+				}
+				else if(value == 'Invalid'){
+					done();
+					return res.status(403).json({success:false, data: 'Invalid User'});
+				}
+		});
+	});
+}
 
 //API to get section id 
 app.post('/api/getSectionId',function(req,res){
