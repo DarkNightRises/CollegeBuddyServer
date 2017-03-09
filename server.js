@@ -179,6 +179,7 @@ function insertQueryResponse(data,client){
 		queryResponseQuery.on('end',function(value){
 			var insertIsSolvedQuery = client.query('Update Query Set issolved = $1 where id = $2',[true,data.query_id]);
 			insertIsSolvedQuery.on('end',function(){
+				
 				return resolve('done');	
 			});
 			
