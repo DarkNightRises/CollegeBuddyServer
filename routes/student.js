@@ -387,6 +387,7 @@ app.post('/api/signupStudent',function(req,res){
 							console.log("Fuccccc    "+data.section_id+"	"+value[0]['id']);
 							var insertSectionStudentQuery = client.query('Insert into section_students(section_id,student_id) values($1,$2)',[data.section_id,value[0]['id']]);
 							insertSectionStudentQuery.on('end',function(){
+								done();
 								return res.status(200).json({success:true,data: value});
 							});
 							
@@ -470,6 +471,7 @@ app.post('/api/giveTest',function(req,res){
 						});
 					}
 					else{
+						done();
 						return res.status(200).json({success:true,data: 'Test Already Over'});
 						
 					}
@@ -501,10 +503,12 @@ app.post('/api/getTest',function(req,res){
 					if(value == true){
 						var getTestpromise = getTest(data,client);
 						getTestpromise.then(function(value){
+							done();
 							return res.status(200).json({success:true, data: value});
 						});
 					}
 					else{
+						done();
 						return res.status(200).json({success:true,data: 'Test Already Over'});
 
 					}	
@@ -558,7 +562,7 @@ function getTest(data,client){
 								if(count == (finalQuestionList.length))
 								{
 									console.log('Inside get test'+finalAnswerList);
-
+									done();
 									return resolve(finalAnswerList);
 								}
 							});
@@ -597,6 +601,7 @@ app.post('/api/getActiveTests',function(req,res){
 						activeSubjectsList.push(subjectObject);
 						count = count+1;
 						if(count == subjects.length){
+							done();
 							return res.status(200).json({success: true, data: activeSubjectsList});
 						}
 					});
