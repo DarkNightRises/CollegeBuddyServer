@@ -17,36 +17,7 @@ require('./models/database');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-//function to send message to a particular class with section id
-function sendMessage(data_subject){
-	var messageGroup = "AKG"+data_subject.section_id;
-	var payloadString = {
-		"reason" : "Notification to a class"
-		"data" : "Sending test message"
-	}
-	var dataPayload = {payload:(payloadString)};
-	return new Promise(function(resolve,reject){
-		var message = {
-			to: '/topics/'+messageAddress
-			notification: {
-				title: 'FCM', 
-				body: 'CollegeBuddy' 
-			},
 
-			data: dataPayload
-		}
-		fcm.send(message,function(err,response){
-			if(err){
-				console.log("Something went wrong ");
-				return reject(err);
-			}
-			else{
-				console.log("Sent message Successfully");
-				return resolve("Sent");
-			}
-		});
-	});
-}
 //Function to send message to class subscribed to a particular topic
 function sendMessages(data_subject,reason_for_meesage){
 	var messageAddress = data_subject.subject_name+data_subject.section+data_subject.branch_name+data_subject.year;
@@ -860,7 +831,7 @@ app.post('/api/sendClass',function(req,res){
 		checkForError(err);
 		var data ={
 			description: req.body.description,
-			sst_id: req.body.sst_id,
+			section_id: req.body.section_id,
 			id: req.body.id,
 			dataflow: 0
 		};
@@ -881,7 +852,7 @@ app.post('/api/sendClass',function(req,res){
 				// done();
 
 				// return res.end('done');
-				var sendPromise = sendMessage(data,'notification');
+				var sendPromise = sendMessages(data,'notification');
 				sendPromise.then(function(value){
 					if(value == 'Sent'){
 						done();
@@ -1030,7 +1001,6 @@ function insertSectionAndGetId(data,client){
 //API To upload subjects by teacher
 app.post('/api/uploadSubject',function(req,res){
 	var faculty_id = req.body.id;
-
 	var inputs = [];
 	var results = [];
 	inputs = req.body.subjects;
