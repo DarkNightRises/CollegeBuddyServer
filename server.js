@@ -1205,7 +1205,7 @@ app.post('/api/signupTeacher', function(req, res) {
 		// After all data is returned, close connection and return results
 		query.on('end', function()  {
 			done();
-			return res.json({sucess: true, data: results});
+			return res.json({success: true, data: results});
 		});		
 		
 	}	
