@@ -836,7 +836,7 @@ app.post('/api/sendClass',function(req,res){
 			sst_id: req.body.sst_id,
 			dataflow: 0
 		};
-		var api_token = req.headers['auth_token'];
+		var api_token = req.headers['auth-token'];
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 			console.log(value);
