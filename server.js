@@ -940,8 +940,10 @@ app.post('/api/getSectionId',function(req,res){
 			id : req.body.id,
 			dataflow: 0
 		};
+		console.log(data);
 			console.log('Came inside');
 	var api_token = req.headers['auth-token'];
+	console.log(api_token);
 		var checkVaildUser = checkAuthToken(api_token,client,data);
 		checkVaildUser.then(function(value){
 				console.log('Came inside'+value);
