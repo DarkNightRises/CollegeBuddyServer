@@ -833,6 +833,7 @@ app.post('/api/sendClass',function(req,res){
 			description: req.body.description,
 			section_id: req.body.section_id,
 			id: req.body.id,
+			sst_id: req.body.sst_id,
 			dataflow: 0
 		};
 		var api_token = req.headers['auth_token'];
