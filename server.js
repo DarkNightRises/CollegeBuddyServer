@@ -1015,7 +1015,7 @@ app.post('/api/uploadSubject',function(req,res){
 			dataflow: 0,
 			id: req.body.id
 		}
-		console.log(data);
+		console.log('data is'+data);
 		var api_token = req.headers['auth_token'];
 		console.log(api_token);
 		var checkVaildUser = checkAuthToken(api_token,client,data);
