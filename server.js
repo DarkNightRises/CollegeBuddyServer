@@ -936,9 +936,13 @@ app.post('/api/getSectionId',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
 		console.log(req.body);
+		var bodyString=req.body;
+		bodyString = bodyString.substring(0,bodyString.length-8);
+		console.log(bodyString);
+		
 		var data = {
-			sections : req.body.sections,
-			id : req.body.id,
+			sections : bodyString.sections,
+			id : bodyString.id,
 			dataflow: 0
 		};
 		console.log(data);
