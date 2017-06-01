@@ -935,6 +935,7 @@ app.post('/api/getSubjectId',function(req,res){
 app.post('/api/getSectionId',function(req,res){
 	pg.connect(connectionString,function(err,client,done){
 		checkForError(err);
+		console.log(req.body);
 		var data = {
 			sections : req.body.sections,
 			id : req.body.id,
